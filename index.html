@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamline — choisis ton pipeline de preprocessing dMRI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0B0D12;
+    --surface: #151822;
+    --surface-alt: #1D212D;
+    --line: #2A2F3D;
+    --text: #ECEAE3;
+    --muted: #8B93A7;
+    --x-axis: #E8564A; /* gauche-droite */
+    --y-axis: #63BF7C; /* antero-posterieur */
+    --z-axis: #4C8CE0; /* supero-inferieur */
+    --gold: #E0B24C;
+    --radius: 10px;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  ::selection{ background: var(--z-axis); color:#0B0D12; }
+
+  .mono{ font-family: 'IBM Plex Mono', monospace; }
+
+  a, button{ font-family: inherit; }
+
+  /* subtle background texture: faint scanner grid */
+  body::before{
+    content:"";
+    position: fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 42px 42px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app{
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    min-height: 100vh;
+    display:flex;
+    flex-direction: column;
+  }
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 4px 0 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+  }
+  .brand{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand .dot3{ display:inline-flex; gap:4px; }
+  .brand .dot3 span{ width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .brand .dot3 span:nth-child(1){ background: var(--x-axis); }
+  .brand .dot3 span:nth-child(2){ background: var(--y-axis); }
+  .brand .dot3 span:nth-child(3){ background: var(--z-axis); }
+
+  .theme-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  /* ---------- streamline progress ---------- */
+  .streamline-wrap{
+    margin-bottom: 30px;
+  }
+  .streamline-wrap svg{ width:100%; height:46px; display:block; }
+  .streamline-label{
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    margin-top: 6px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  /* ---------- screens ---------- */
+  .screen{ display:none; flex:1; flex-direction: column; }
+  .screen.active{ display:flex; }
+  @media (prefers-reduced-motion: no-preference){
+    .screen.active{ animation: rise 480ms cubic-bezier(.2,.8,.2,1); }
+  }
+  @keyframes rise{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  /* intro */
+  .intro h1{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 42px);
+    line-height: 1.15;
+    margin: 6px 0 18px;
+  }
+  .intro h1 .accent{ color: var(--z-axis); }
+  .intro p.lede{
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 56ch;
+    margin-bottom: 28px;
+  }
+  .intro .facts{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 34px;
+  }
+  .fact{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 14px;
+  }
+  .fact b{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 22px;
+    margin-bottom: 2px;
+  }
+  .fact span{ color: var(--muted); font-size: 12.5px; }
+  .fact:nth-child(1) b{ color: var(--x-axis); }
+  .fact:nth-child(2) b{ color: var(--y-axis); }
+  .fact:nth-child(3) b{ color: var(--z-axis); }
+
+  .theme-picker{
+    display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom: 28px;
+  }
+  .theme-btn{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 12px;
+    color: var(--text);
+    cursor: pointer;
+    text-align:left;
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .theme-btn strong{ display:block; font-size:14.5px; margin-bottom: 4px; }
+  .theme-btn span{ font-size: 12px; color: var(--muted); }
+  .theme-btn:hover{ border-color: var(--z-axis); transform: translateY(-2px); }
+  .theme-btn:disabled{ opacity: .4; cursor: not-allowed; }
+  .theme-btn:disabled:hover{ transform:none; border-color: var(--line); }
+  .theme-btn.selected{ border-color: var(--z-axis); background: var(--surface-alt); }
+
+  .btn-primary{
+    align-self: flex-start;
+    background: var(--z-axis);
+    color: #0B0D12;
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    padding: 13px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(76,140,224,0.25); }
+  .btn-primary:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; transform:none; }
+
+  .btn-ghost{
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    cursor:pointer;
+  }
+  .btn-ghost:hover{ color: var(--text); border-color: var(--muted); }
+
+  /* quiz */
+  .q-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .q-title{
+    font-size: clamp(20px, 3.4vw, 26px);
+    font-weight: 600;
+    margin: 0 0 22px;
+    max-width: 46ch;
+  }
+  .options{ display:flex; flex-direction:column; gap:10px; margin-bottom: 24px; }
+  .option{
+    display:flex; align-items:center; gap:12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor:pointer;
+    text-align:left;
+    color: var(--text);
+    font-size: 15px;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .option:hover{ border-color: var(--y-axis); }
+  .option:focus-visible{ outline: 2px solid var(--z-axis); outline-offset: 2px; }
+  .option .mark{
+    width:18px; height:18px; flex: none;
+    border: 1.5px solid var(--muted);
+    border-radius: 5px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .option.radio .mark{ border-radius: 50%; }
+  .option .mark::after{
+    content:""; width:9px; height:9px; border-radius: inherit; background: var(--z-axis); opacity:0; transform: scale(.4);
+    transition: all .12s ease;
+  }
+  .option.checked{ border-color: var(--z-axis); background: var(--surface-alt); }
+  .option.checked .mark::after{ opacity:1; transform: scale(1); }
+  .option small{ display:block; color: var(--muted); font-size: 12px; margin-top:2px; }
+
+  .q-nav{ display:flex; gap:10px; align-items:center; margin-top:auto; padding-top: 10px; }
+
+  /* results */
+  .result-head{ margin-bottom: 22px; }
+  .result-head .q-eyebrow{ color: var(--gold); }
+  .result-head h2{ font-size: clamp(22px,4vw,30px); margin: 6px 0 8px; font-family:'IBM Plex Mono', monospace; }
+  .result-head p{ color: var(--muted); max-width: 58ch; }
+
+  .rank-card{
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .rank-card.first{ border-color: var(--gold); background: linear-gradient(180deg, rgba(224,178,76,0.08), var(--surface)); }
+  .rank-row{ display:flex; justify-content:space-between; align-items:flex-start; gap: 14px; margin-bottom: 10px; }
+  .rank-num{
+    font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
+  }
+  .rank-name{ font-size: 19px; font-weight:600; margin: 2px 0 4px; }
+  .rank-desc{ color: var(--muted); font-size: 13.5px; max-width: 52ch; }
+  .rank-score{ text-align:right; flex:none; }
+  .rank-score b{ font-family:'IBM Plex Mono', monospace; font-size: 20px; }
+  .rank-score span{ display:block; font-size:11px; color: var(--muted); }
+
+  .score-bar{
+    height:6px; border-radius:4px; background: var(--surface-alt); overflow:hidden; margin: 10px 0 12px;
+  }
+  .score-bar i{ display:block; height:100%; background: linear-gradient(90deg, var(--x-axis), var(--y-axis), var(--z-axis)); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    padding: 4px 9px;
+    border-radius: 999px;
+  }
+  .chip.warn{ border-color: var(--x-axis); color: var(--x-axis); }
+
+  .filters-note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--muted);
+    border-left: 2px solid var(--z-axis);
+    padding: 8px 12px;
+    margin-bottom: 22px;
+    background: var(--surface);
+    border-radius: 0 6px 6px 0;
+  }
+
+  footer.foot{
+    margin-top: 40px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  @media (max-width: 560px){
+    .intro .facts{ grid-template-columns: 1fr; }
+    .theme-picker{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand"><span class="dot3"><span></span><span></span><span></span></span> streamline</div>
+    <div class="theme-tag mono" id="themeTag">dMRI pipeline finder</div>
+  </header>
+
+  <div class="streamline-wrap" id="streamlineWrap" style="display:none;">
+    <svg viewBox="0 0 700 46" preserveAspectRatio="none">
+      <path id="track" d="M2,23 C120,4 180,42 260,23 C340,4 400,42 480,23 C560,4 620,42 698,23"
+            fill="none" stroke="#2A2F3D" stroke-width="3" stroke-linecap="round"/>
+      <path id="fill" d="M2,23 C120,4 180,42 260,23 C340,4 400,42 480,23 C560,4 620,42 698,23"
+            fill="none" stroke="url(#grad)" stroke-width="3" stroke-linecap="round"
+            stroke-dasharray="1000" stroke-dashoffset="1000"/>
+      <defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#E8564A"/>
+          <stop offset="50%" stop-color="#63BF7C"/>
+          <stop offset="100%" stop-color="#4C8CE0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="streamline-label">
+      <span id="stepLabel">Question 1 / 7</span>
+      <span id="stepPct">0%</span>
+    </div>
+  </div>
+
+  <!-- INTRO -->
+  <section class="screen active intro" id="screen-intro">
+    <h1>Quel pipeline pour <span class="accent">tes</span> données de diffusion&nbsp;?</h1>
+    <p class="lede">Réponds à une série de questions sur tes données, ton environnement et tes besoins d'analyse. Le résultat est calculé à partir d'un tableau comparatif de 15 pipelines de preprocessing dMRI, croisés sur ~50 critères techniques.</p>
+
+    <div class="facts">
+      <div class="fact"><b>15</b><span>pipelines comparés</span></div>
+      <div class="fact"><b>~50</b><span>critères techniques croisés</span></div>
+      <div class="fact"><b>7</b><span>questions à répondre</span></div>
+    </div>
+
+    <div class="q-eyebrow">Population étudiée</div>
+    <div class="theme-picker" id="themePicker">
+      <button class="theme-btn selected" data-theme="adulte">
+        <strong>Humain adulte</strong>
+        <span>Disponible — sévère, vieillissement inclus</span>
+      </button>
+      <button class="theme-btn" data-theme="pediatrique" disabled>
+        <strong>Humain jeune (pédiatrique)</strong>
+        <span>Bientôt disponible</span>
+      </button>
+      <button class="theme-btn" data-theme="animal" disabled>
+        <strong>Petit animal</strong>
+        <span>Bientôt disponible</span>
+      </button>
+    </div>
+
+    <button class="btn-primary" id="startBtn">Commencer →</button>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="screen" id="screen-quiz">
+    <div class="q-eyebrow" id="qEyebrow">Données</div>
+    <h2 class="q-title" id="qTitle">—</h2>
+    <div class="options" id="qOptions"></div>
+    <div class="q-nav">
+      <button class="btn-ghost" id="backBtn">← Retour</button>
+      <button class="btn-primary" id="nextBtn" disabled>Suivant →</button>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="screen" id="screen-result">
+    <div class="result-head">
+      <div class="q-eyebrow">Résultat</div>
+      <h2>Ton classement de pipelines</h2>
+      <p>Basé sur tes réponses, filtré sur les contraintes bloquantes puis classé par score pondéré sur tes préférences.</p>
+    </div>
+    <div id="filtersNote"></div>
+    <div id="rankList"></div>
+    <div class="q-nav" style="margin-top:10px;">
+      <button class="btn-ghost" id="restartBtn">↺ Recommencer</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Données humain adulte — module pédiatrique &amp; petit animal à venir. Prototype pour usage interne.
+  </footer>
+</div>
+
+<script>
+/* ======================= DATA: 15 pipelines, humain adulte ======================= */
+const PIPELINES = [
+  { id:"qsiprep", name:"QSIPrep",
+    desc:"BIDS App Python/NiPype très polyvalent : seul avec TORTOISE à gérer le compressed sensing, GPU, tractographie avancée (ACT+SIFT2), rapport HTML complet, développement très actif.",
+    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:3, resume:true,
+    scalability:["local","hpc"], hpcLevel:2, activity:4,
+    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
+    tractography:true, dki:true, noddi:true, freewater:true, fodf:true,
+    qcBoilerplate:true, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
+    multiShell:true, cartesian:true, compressedSensing:true, testRetest:true, signalDrift:false },
+
+  { id:"tractoflow", name:"Tractoflow",
+    desc:"Nextflow DSL1, scalable HPC + cloud (AWS/GCP/Azure) nativement, reprise sur erreur native Nextflow, orienté tractographie (PFT), actif.",
+    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:true,
+    scalability:["hpc","cloud"], hpcLevel:2, activity:3,
+    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
+    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"sftractomics", name:"sf-tractomics (scilpy-flow)",
+    desc:"Nextflow DSL2, scripts scilpy modifiables et développement Python ouvert. Le plus complet sur les modèles avancés : NODDI, free-water, tractométrie. Très actif (jeune projet).",
+    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:3, resume:true,
+    scalability:["hpc","cloud"], hpcLevel:2, activity:4,
+    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:true, containerized:true,
+    tractography:true, dki:false, noddi:true, freewater:true, fodf:true,
+    qcBoilerplate:true, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:true, tractometry:true,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"prequal", name:"PreQual",
+    desc:"Orienté vérification qualité (EddyQuad), pas de tractographie ni de brain extraction dédiée. Rapport HTML solide, maintenance lente mais stable.",
+    interface:"terminal", gpu:true, parallel:true, polyvalent:false, modifiability:1, resume:false,
+    scalability:["hpc"], hpcLevel:1, activity:2,
+    bids:false, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
+    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"mrtrix3", name:"MRtrix3_connectome",
+    desc:"Pipeline connectomique de référence : matrices de connectivité structurelle SIFT2, fODF MSMT-CSD, HPC (Slurm). Maintenance ralentie depuis 2022.",
+    interface:"terminal", gpu:false, parallel:true, polyvalent:false, modifiability:2, resume:false,
+    scalability:["hpc"], hpcLevel:1, activity:2,
+    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
+    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
+    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"dmriprep", name:"dMRIPrep",
+    desc:"NiPype modulaire dans l'esprit fMRIPrep. Denoising minimal (pas de MP-PCA/Gibbs/B1/motion correction listés), rapport HTML présent, développement ralenti depuis 2021.",
+    interface:"terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:true,
+    scalability:["hpc"], hpcLevel:1, activity:2,
+    bids:true, gradientCheck:false, mppca:false, gibbs:false, b1:false, motion:false, fieldmapless:true, htmlReport:true, containerized:true,
+    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"designer", name:"DESIGNER (PyDesigner)",
+    desc:"Spécialisé kurtosis : modèle DKI natif, seul à documenter la reproductibilité test-retest et une correction de dérive du signal dédiée. Actif (v2, 2023-2024).",
+    interface:"terminal", gpu:false, parallel:true, polyvalent:false, modifiability:3, resume:false,
+    scalability:["local","hpc"], hpcLevel:1, activity:3,
+    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:false, dki:true, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:true },
+
+  { id:"tracula", name:"TRACULA (FreeSurfer)",
+    desc:"Scripts shell FreeSurfer modifiables manuellement mais pipeline quasi-figé, dépendant des mises à jour FreeSurfer. Tractographie probabiliste (MCMC/probtrack).",
+    interface:"terminal", gpu:false, parallel:false, polyvalent:false, modifiability:2, resume:false,
+    scalability:["local","hpc"], hpcLevel:1, activity:1,
+    bids:true, gradientCheck:false, mppca:false, gibbs:false, b1:false, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:true, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:false, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"brainlife", name:"brainlife.io",
+    desc:"Plateforme web cloud-native, pas d'installation locale, apps custom. NODDI, fODF, tractométrie. Mises à jour continues.",
+    interface:"web", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:true,
+    scalability:["cloud"], hpcLevel:2, activity:4,
+    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:true, containerized:true,
+    tractography:true, dki:false, noddi:true, freewater:false, fodf:true,
+    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:true, biasCorrection:false, tractometry:true,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"micapipe", name:"MICApipe",
+    desc:"Connectomique multimodale (18 parcellations), reprise sur erreur, actif (labo MICA). GitHub, installation docker/singularity.",
+    interface:"terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:true,
+    scalability:["hpc"], hpcLevel:1, activity:3,
+    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
+    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
+    qcBoilerplate:true, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:false },
+
+  { id:"tortoise", name:"TORTOISE (DIFFPREP)",
+    desc:"GUI + terminal, C++ binaire. Seul avec QSIPrep à supporter le compressed sensing. Correction DR-BUDDI difféomorphique, mais pipeline peu extensible et peu de mises à jour.",
+    interface:"gui+terminal", gpu:false, parallel:true, polyvalent:false, modifiability:1, resume:false,
+    scalability:["local","hpc"], hpcLevel:1, activity:2,
+    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:false, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:true, compressedSensing:true, testRetest:false, signalDrift:false },
+
+  { id:"acid", name:"ACID (SPM toolbox)",
+    desc:"Environnement MATLAB/SPM batch personnalisable, denoising msPOAS, modèle DKI. Pas de conteneurisation officielle.",
+    interface:"gui", gpu:false, parallel:false, polyvalent:true, modifiability:3, resume:false,
+    scalability:["local"], hpcLevel:1, activity:3,
+    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:false,
+    tractography:false, dki:true, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:false },
+
+  { id:"hcp", name:"HCP Minimal Preprocessing",
+    desc:"Standard historique du Human Connectome Project (FreeSurfer + FSL), fieldmap GRE. Peu de mises à jour dMRI récentes, mais très éprouvé et adapté production HPC.",
+    interface:"terminal", gpu:true, parallel:true, polyvalent:false, modifiability:1, resume:false,
+    scalability:["hpc"], hpcLevel:2, activity:2,
+    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"dtiprep", name:"DTIPrep / dtiplayground",
+    desc:"Modules Python personnalisables, protocole QC dédié, gradient direction sanity check. GUI + terminal.",
+    interface:"gui+terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:false,
+    scalability:["local","hpc"], hpcLevel:1, activity:3,
+    bids:false, gradientCheck:true, mppca:true, gibbs:false, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+
+  { id:"brainsuite", name:"BrainSuite BDP",
+    desc:"GUI + terminal tout-en-un desktop : BrainSuite CSE pour l'extraction cérébrale, SVREG, dashboard QC intégré. Actif (v23a, releases régulières).",
+    interface:"gui+terminal", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:false,
+    scalability:["hpc"], hpcLevel:1, activity:3,
+    bids:true, gradientCheck:false, mppca:true, gibbs:false, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
+    tractography:true, dki:false, noddi:false, freewater:false, fodf:false,
+    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
+    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+];
+
+/* ======================= QUESTIONS ======================= */
+// Each option: { label, sub?, filter?: (p)=>bool, score?: (p)=>number, tag?: string }
+const QUESTIONS = [
+  { id:"acq", eyebrow:"Données brutes", type:"single",
+    title:"De quel type sont tes données d'acquisition ?",
+    options:[
+      { label:"Single shell uniquement", tag:"single-shell",
+        filter:null },
+      { label:"Multi-shell (plusieurs valeurs de b)", tag:"multi-shell",
+        filter:p=>p.multiShell===true },
+      { label:"Acquisition compressed sensing / non cartésienne", tag:"compressed-sensing",
+        filter:p=>p.compressedSensing===true },
+      { label:"Je ne sais pas", tag:"unsure", filter:null },
+    ]},
+
+  { id:"tracto", eyebrow:"Objectif d'analyse", type:"single",
+    title:"As-tu besoin d'aller jusqu'à la tractographie ?",
+    options:[
+      { label:"Oui, la tractographie fait partie de l'analyse", tag:"tracto-yes",
+        filter:p=>p.tractography===true },
+      { label:"Non, seulement le preprocessing", tag:"tracto-no", filter:null },
+      { label:"Je ne sais pas encore", tag:"unsure", filter:null },
+    ]},
+
+  { id:"compute", eyebrow:"Environnement", type:"single",
+    title:"Quel environnement de calcul as-tu à disposition ?",
+    options:[
+      { label:"Mon ordinateur uniquement (local)", tag:"local",
+        score:p=>p.scalability.includes("local") ? 3 : 0 },
+      { label:"Cluster HPC (Slurm / SGE / PBS)", tag:"hpc",
+        score:p=>(p.scalability.includes("hpc")?2:0) + (p.hpcLevel===2?2:0) },
+      { label:"Cloud (AWS/GCP/Azure) ou plateforme web", tag:"cloud",
+        score:p=>p.scalability.includes("cloud") ? 4 : 0 },
+      { label:"Peu importe", tag:"any", score:null },
+    ]},
+
+  { id:"interface", eyebrow:"Usage quotidien", type:"single",
+    title:"Quel type d'interface préfères-tu utiliser ?",
+    options:[
+      { label:"Terminal / ligne de commande, aucun problème", tag:"cli",
+        score:p=>p.interface==="terminal" ? 3 : 0 },
+      { label:"Une interface graphique ou une plateforme web", tag:"gui",
+        score:p=>(p.interface==="gui"||p.interface==="gui+terminal"||p.interface==="web") ? 3 : 0 },
+      { label:"Peu importe, je veux juste que ça marche", tag:"any", score:null },
+    ]},
+
+  { id:"custom", eyebrow:"Personnalisation", type:"single",
+    title:"Quelle importance donnes-tu à la possibilité de modifier le pipeline (code, paramètres) ?",
+    options:[
+      { label:"Très importante, je veux pouvoir tout ajuster", tag:"custom-high",
+        score:p=>p.modifiability * 2 + (p.polyvalent?2:0) },
+      { label:"Un peu, quelques paramètres suffisent", tag:"custom-mid",
+        score:p=>p.modifiability },
+      { label:"Aucune, je veux du clé-en-main fiable", tag:"custom-low",
+        score:p=>(3-p.modifiability) + (p.containerized?2:0) + (p.htmlReport?1:0) },
+    ]},
+
+  { id:"advanced", eyebrow:"Besoins avancés", type:"multi",
+    title:"As-tu besoin de méthodes ou analyses avancées particulières ?",
+    options:[
+      { label:"Modèles avancés (NODDI, DKI, free-water)", tag:"models",
+        score:p=>(p.noddi?3:0)+(p.dki?3:0)+(p.freewater?3:0) },
+      { label:"Reconstruction fODF / tractographie avancée (CSD)", tag:"fodf",
+        score:p=>p.fodf ? 4 : 0 },
+      { label:"Connectomique (matrices de connectivité, tractométrie)", tag:"connectomics",
+        score:p=>(p.connectivity?3:0)+(p.tractometry?3:0)+(p.biasCorrection?2:0) },
+      { label:"QC quantitatif poussé (rapports, détection d'outliers)", tag:"qc",
+        score:p=>(p.qcQuant?2:0)+(p.qcBoilerplate?2:0)+(p.qcVisual?2:0)+(p.htmlReport?1:0) },
+      { label:"Rien de spécial", tag:"none", score:null },
+    ]},
+
+  { id:"maintenance", eyebrow:"Pérennité", type:"single",
+    title:"Le pipeline doit-il être activement maintenu à long terme ?",
+    options:[
+      { label:"Oui, c'est important pour moi", tag:"maint-yes",
+        score:p=>p.activity * 2 + (p.resume?1:0) },
+      { label:"Peu importe, je regarde surtout les fonctionnalités", tag:"any", score:null },
+    ]},
+];
+
+/* ======================= ENGINE ======================= */
+let current = 0;
+const answers = new Array(QUESTIONS.length).fill(null).map(()=>[]); // array of selected option indices per question
+
+const screenIntro = document.getElementById('screen-intro');
+const screenQuiz = document.getElementById('screen-quiz');
+const screenResult = document.getElementById('screen-result');
+const streamlineWrap = document.getElementById('streamlineWrap');
+const fillPath = document.getElementById('fill');
+const stepLabel = document.getElementById('stepLabel');
+const stepPct = document.getElementById('stepPct');
+
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  screenIntro.classList.remove('active');
+  screenQuiz.classList.add('active');
+  streamlineWrap.style.display = 'block';
+  renderQuestion();
+});
+
+document.getElementById('restartBtn').addEventListener('click', ()=>{
+  current = 0;
+  for(let i=0;i<answers.length;i++) answers[i] = [];
+  screenResult.classList.remove('active');
+  screenIntro.classList.add('active');
+  streamlineWrap.style.display = 'none';
+});
+
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  if(current === 0){
+    screenQuiz.classList.remove('active');
+    screenIntro.classList.add('active');
+    streamlineWrap.style.display = 'none';
+    return;
+  }
+  current--;
+  renderQuestion();
+});
+
+document.getElementById('nextBtn').addEventListener('click', ()=>{
+  if(current < QUESTIONS.length - 1){
+    current++;
+    renderQuestion();
+  } else {
+    computeResults();
+  }
+});
+
+function updateProgress(){
+  const total = QUESTIONS.length;
+  const pct = Math.round((current) / total * 100);
+  const len = fillPath.getTotalLength ? fillPath.getTotalLength() : 1000;
+  fillPath.style.strokeDasharray = len;
+  fillPath.style.strokeDashoffset = len - (len * (current/total));
+  stepLabel.textContent = `Question ${current+1} / ${total}`;
+  stepPct.textContent = pct + '%';
+}
+
+function renderQuestion(){
+  const q = QUESTIONS[current];
+  document.getElementById('qEyebrow').textContent = q.eyebrow;
+  document.getElementById('qTitle').textContent = q.title;
+  const wrap = document.getElementById('qOptions');
+  wrap.innerHTML = '';
+  q.options.forEach((opt, idx)=>{
+    const el = document.createElement('button');
+    el.className = 'option ' + (q.type==='single' ? 'radio' : 'checkbox');
+    if(answers[current].includes(idx)) el.classList.add('checked');
+    el.innerHTML = `<span class="mark"></span><span>${opt.label}</span>`;
+    el.addEventListener('click', ()=>{
+      if(q.type === 'single'){
+        answers[current] = [idx];
+      } else {
+        const i = answers[current].indexOf(idx);
+        if(i>-1) answers[current].splice(i,1); else answers[current].push(idx);
+      }
+      renderQuestion();
+    });
+    wrap.appendChild(el);
+  });
+  document.getElementById('nextBtn').disabled = answers[current].length === 0;
+  document.getElementById('nextBtn').textContent = current === QUESTIONS.length-1 ? 'Voir le résultat →' : 'Suivant →';
+  document.getElementById('backBtn').style.visibility = 'visible';
+  updateProgress();
+}
+
+function computeResults(){
+  streamlineWrap.style.display = 'block';
+  current = QUESTIONS.length;
+  updateProgress();
+
+  let pool = PIPELINES.slice();
+  const appliedFilters = [];
+  const scoreTags = [];
+
+  QUESTIONS.forEach((q, qi)=>{
+    answers[qi].forEach(oi=>{
+      const opt = q.options[oi];
+      if(opt.filter){
+        appliedFilters.push(opt.label);
+        pool = pool.filter(opt.filter);
+      }
+    });
+  });
+
+  let fallback = false;
+  if(pool.length === 0){
+    fallback = true;
+    pool = PIPELINES.slice();
+  }
+
+  const scored = pool.map(p=>{
+    let total = 0;
+    const matched = [];
+    QUESTIONS.forEach((q, qi)=>{
+      answers[qi].forEach(oi=>{
+        const opt = q.options[oi];
+        if(opt.score){
+          const pts = opt.score(p);
+          if(pts > 0){ total += pts; matched.push(opt.tag); }
+        }
+      });
+    });
+    return { p, total, matched };
+  });
+
+  scored.sort((a,b)=> b.total - a.total || b.p.activity - a.p.activity);
+
+  const maxScore = scored.length ? scored[0].total : 1;
+  const top = scored.slice(0, 3);
+
+  const noteEl = document.getElementById('filtersNote');
+  if(fallback){
+    noteEl.innerHTML = `<div class="filters-note">Aucun pipeline ne remplit toutes tes contraintes exactement — classement recalculé sur l'ensemble des 15 pipelines par score de préférence uniquement.</div>`;
+  } else if(appliedFilters.length){
+    noteEl.innerHTML = `<div class="filters-note">Filtres bloquants appliqués : ${appliedFilters.join(' · ')} — ${pool.length}/${PIPELINES.length} pipelines restants avant classement par score.</div>`;
+  } else {
+    noteEl.innerHTML = '';
+  }
+
+  const listEl = document.getElementById('rankList');
+  listEl.innerHTML = '';
+  top.forEach((entry, i)=>{
+    const p = entry.p;
+    const pct = maxScore>0 ? Math.max(6, Math.round(entry.total / maxScore * 100)) : 0;
+    const card = document.createElement('div');
+    card.className = 'rank-card' + (i===0 ? ' first' : '');
+    card.innerHTML = `
+      <div class="rank-row">
+        <div>
+          <div class="rank-num">RANG ${i+1}${i===0 ? ' · MEILLEUR MATCH' : ''}</div>
+          <div class="rank-name">${p.name}</div>
+          <div class="rank-desc">${p.desc}</div>
+        </div>
+        <div class="rank-score">
+          <b>${entry.total}</b>
+          <span>points</span>
+        </div>
+      </div>
+      <div class="score-bar"><i style="width:${pct}%"></i></div>
+      <div class="chips">
+        ${p.interface ? `<span class="chip">${p.interface}</span>` : ''}
+        ${p.containerized ? `<span class="chip">conteneurisé</span>` : ''}
+        ${p.tractography ? `<span class="chip">tractographie</span>` : ''}
+        ${p.gpu ? `<span class="chip">GPU</span>` : ''}
+        ${p.activity>=3 ? `<span class="chip">maintenance active</span>` : `<span class="chip warn">maintenance lente</span>`}
+      </div>
+    `;
+    listEl.appendChild(card);
+  });
+
+  screenQuiz.classList.remove('active');
+  screenResult.classList.add('active');
+}
+</script>
+</body>
+</html>

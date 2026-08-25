@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Streamline — choisis ton pipeline de preprocessing dMRI</title>
+<title>Streamline — find your dMRI preprocessing pipeline</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
@@ -14,9 +15,9 @@
     --line: #2A2F3D;
     --text: #ECEAE3;
     --muted: #8B93A7;
-    --x-axis: #E8564A; /* gauche-droite */
-    --y-axis: #63BF7C; /* antero-posterieur */
-    --z-axis: #4C8CE0; /* supero-inferieur */
+    --x-axis: #E8564A; /* left-right */
+    --y-axis: #63BF7C; /* anterior-posterior */
+    --z-axis: #4C8CE0; /* superior-inferior */
     --gold: #E0B24C;
     --radius: 10px;
   }
@@ -31,12 +32,9 @@
     line-height: 1.5;
   }
   ::selection{ background: var(--z-axis); color:#0B0D12; }
-
   .mono{ font-family: 'IBM Plex Mono', monospace; }
-
   a, button{ font-family: inherit; }
 
-  /* subtle background texture: faint scanner grid */
   body::before{
     content:"";
     position: fixed; inset:0;
@@ -49,14 +47,11 @@
   }
 
   .app{
-    position: relative;
-    z-index: 1;
-    max-width: 760px;
-    margin: 0 auto;
+    position: relative; z-index: 1;
+    max-width: 760px; margin: 0 auto;
     padding: 32px 20px 80px;
     min-height: 100vh;
-    display:flex;
-    flex-direction: column;
+    display:flex; flex-direction: column;
   }
 
   header.top{
@@ -66,12 +61,9 @@
     margin-bottom: 28px;
   }
   .brand{
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    display:flex; align-items:center; gap:10px;
+    font-family:'IBM Plex Mono', monospace; font-size: 13px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); display:flex; align-items:center; gap:10px;
   }
   .brand .dot3{ display:inline-flex; gap:4px; }
   .brand .dot3 span{ width:6px; height:6px; border-radius:50%; display:inline-block; }
@@ -80,232 +72,146 @@
   .brand .dot3 span:nth-child(3){ background: var(--z-axis); }
 
   .theme-tag{
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    border: 1px solid var(--line);
-    padding: 4px 10px;
-    border-radius: 999px;
+    font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
+    border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px;
   }
 
-  /* ---------- streamline progress ---------- */
-  .streamline-wrap{
-    margin-bottom: 30px;
-  }
+  .streamline-wrap{ margin-bottom: 30px; }
   .streamline-wrap svg{ width:100%; height:46px; display:block; }
   .streamline-label{
     display:flex; justify-content:space-between;
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 11px; color: var(--muted);
-    margin-top: 6px;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    font-family:'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+    margin-top: 6px; text-transform: uppercase; letter-spacing: 0.08em;
   }
 
-  /* ---------- screens ---------- */
   .screen{ display:none; flex:1; flex-direction: column; }
   .screen.active{ display:flex; }
   @media (prefers-reduced-motion: no-preference){
     .screen.active{ animation: rise 480ms cubic-bezier(.2,.8,.2,1); }
   }
-  @keyframes rise{
-    from{ opacity:0; transform: translateY(10px); }
-    to{ opacity:1; transform: translateY(0); }
-  }
+  @keyframes rise{ from{ opacity:0; transform: translateY(10px); } to{ opacity:1; transform: translateY(0); } }
 
-  /* intro */
   .intro h1{
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 700;
-    font-size: clamp(28px, 5vw, 42px);
-    line-height: 1.15;
-    margin: 6px 0 18px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+    font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 6px 0 18px;
   }
   .intro h1 .accent{ color: var(--z-axis); }
-  .intro p.lede{
-    color: var(--muted);
-    font-size: 16px;
-    max-width: 56ch;
-    margin-bottom: 28px;
-  }
-  .intro .facts{
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 34px;
-  }
-  .fact{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 14px 14px;
-  }
-  .fact b{
-    display:block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 22px;
-    margin-bottom: 2px;
-  }
+  .intro p.lede{ color: var(--muted); font-size: 16px; max-width: 56ch; margin-bottom: 28px; }
+  .intro .facts{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 34px; }
+  .fact{ background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .fact b{ display:block; font-family:'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 2px; }
   .fact span{ color: var(--muted); font-size: 12.5px; }
   .fact:nth-child(1) b{ color: var(--x-axis); }
   .fact:nth-child(2) b{ color: var(--y-axis); }
   .fact:nth-child(3) b{ color: var(--z-axis); }
 
-  .theme-picker{
-    display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom: 28px;
-  }
+  .theme-picker{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom: 18px; }
   .theme-btn{
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 16px 12px;
-    color: var(--text);
-    cursor: pointer;
-    text-align:left;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 12px; color: var(--text); cursor: pointer; text-align:left;
     transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
   .theme-btn strong{ display:block; font-size:14.5px; margin-bottom: 4px; }
   .theme-btn span{ font-size: 12px; color: var(--muted); }
   .theme-btn:hover{ border-color: var(--z-axis); transform: translateY(-2px); }
-  .theme-btn:disabled{ opacity: .4; cursor: not-allowed; }
-  .theme-btn:disabled:hover{ transform:none; border-color: var(--line); }
   .theme-btn.selected{ border-color: var(--z-axis); background: var(--surface-alt); }
+  .theme-btn.errored{ border-color: var(--x-axis); }
+
+  .load-msg{
+    font-family:'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--muted);
+    margin-bottom: 22px; min-height: 18px;
+  }
+  .load-msg.err{ color: var(--x-axis); }
 
   .btn-primary{
-    align-self: flex-start;
-    background: var(--z-axis);
-    color: #0B0D12;
-    border: none;
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 600;
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    padding: 13px 22px;
-    border-radius: 999px;
-    cursor: pointer;
+    align-self: flex-start; background: var(--z-axis); color: #0B0D12; border: none;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; letter-spacing: 0.02em;
+    padding: 13px 22px; border-radius: 999px; cursor: pointer;
     transition: transform .15s ease, box-shadow .15s ease;
   }
   .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(76,140,224,0.25); }
   .btn-primary:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; transform:none; }
 
   .btn-ghost{
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--line);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    padding: 10px 16px;
-    border-radius: 999px;
-    cursor:pointer;
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 10px 16px;
+    border-radius: 999px; cursor:pointer;
   }
   .btn-ghost:hover{ color: var(--text); border-color: var(--muted); }
 
-  /* quiz */
   .q-eyebrow{
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 10px;
+    font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
   }
-  .q-title{
-    font-size: clamp(20px, 3.4vw, 26px);
-    font-weight: 600;
-    margin: 0 0 22px;
-    max-width: 46ch;
-  }
+  .q-title{ font-size: clamp(20px, 3.4vw, 26px); font-weight: 600; margin: 0 0 22px; max-width: 46ch; }
   .options{ display:flex; flex-direction:column; gap:10px; margin-bottom: 24px; }
   .option{
-    display:flex; align-items:center; gap:12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 14px 16px;
-    cursor:pointer;
-    text-align:left;
-    color: var(--text);
-    font-size: 15px;
-    transition: border-color .15s ease, background .15s ease;
+    display:flex; align-items:center; gap:12px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px 16px; cursor:pointer; text-align:left; color: var(--text);
+    font-size: 15px; transition: border-color .15s ease, background .15s ease;
   }
   .option:hover{ border-color: var(--y-axis); }
   .option:focus-visible{ outline: 2px solid var(--z-axis); outline-offset: 2px; }
   .option .mark{
-    width:18px; height:18px; flex: none;
-    border: 1.5px solid var(--muted);
-    border-radius: 5px;
+    width:18px; height:18px; flex: none; border: 1.5px solid var(--muted); border-radius: 5px;
     display:flex; align-items:center; justify-content:center;
   }
   .option.radio .mark{ border-radius: 50%; }
   .option .mark::after{
-    content:""; width:9px; height:9px; border-radius: inherit; background: var(--z-axis); opacity:0; transform: scale(.4);
-    transition: all .12s ease;
+    content:""; width:9px; height:9px; border-radius: inherit; background: var(--z-axis);
+    opacity:0; transform: scale(.4); transition: all .12s ease;
   }
   .option.checked{ border-color: var(--z-axis); background: var(--surface-alt); }
   .option.checked .mark::after{ opacity:1; transform: scale(1); }
-  .option small{ display:block; color: var(--muted); font-size: 12px; margin-top:2px; }
 
   .q-nav{ display:flex; gap:10px; align-items:center; margin-top:auto; padding-top: 10px; }
 
-  /* results */
   .result-head{ margin-bottom: 22px; }
   .result-head .q-eyebrow{ color: var(--gold); }
   .result-head h2{ font-size: clamp(22px,4vw,30px); margin: 6px 0 8px; font-family:'IBM Plex Mono', monospace; }
   .result-head p{ color: var(--muted); max-width: 58ch; }
 
   .rank-card{
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 14px;
+    position: relative; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 14px;
   }
   .rank-card.first{ border-color: var(--gold); background: linear-gradient(180deg, rgba(224,178,76,0.08), var(--surface)); }
   .rank-row{ display:flex; justify-content:space-between; align-items:flex-start; gap: 14px; margin-bottom: 10px; }
-  .rank-num{
-    font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
-  }
+  .rank-num{ font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
   .rank-name{ font-size: 19px; font-weight:600; margin: 2px 0 4px; }
   .rank-desc{ color: var(--muted); font-size: 13.5px; max-width: 52ch; }
   .rank-score{ text-align:right; flex:none; }
   .rank-score b{ font-family:'IBM Plex Mono', monospace; font-size: 20px; }
   .rank-score span{ display:block; font-size:11px; color: var(--muted); }
 
-  .score-bar{
-    height:6px; border-radius:4px; background: var(--surface-alt); overflow:hidden; margin: 10px 0 12px;
-  }
+  .score-bar{ height:6px; border-radius:4px; background: var(--surface-alt); overflow:hidden; margin: 10px 0 12px; }
   .score-bar i{ display:block; height:100%; background: linear-gradient(90deg, var(--x-axis), var(--y-axis), var(--z-axis)); }
 
   .chips{ display:flex; flex-wrap:wrap; gap:6px; }
   .chip{
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--text);
-    background: var(--surface-alt);
-    border: 1px solid var(--line);
-    padding: 4px 9px;
-    border-radius: 999px;
+    font-family:'IBM Plex Mono', monospace; font-size: 11px; color: var(--text);
+    background: var(--surface-alt); border: 1px solid var(--line); padding: 4px 9px; border-radius: 999px;
   }
   .chip.warn{ border-color: var(--x-axis); color: var(--x-axis); }
 
   .filters-note{
-    font-family:'IBM Plex Mono', monospace;
-    font-size: 12px; color: var(--muted);
-    border-left: 2px solid var(--z-axis);
-    padding: 8px 12px;
-    margin-bottom: 22px;
-    background: var(--surface);
-    border-radius: 0 6px 6px 0;
+    font-family:'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);
+    border-left: 2px solid var(--z-axis); padding: 8px 12px; margin-bottom: 22px;
+    background: var(--surface); border-radius: 0 6px 6px 0;
   }
 
   footer.foot{
-    margin-top: 40px;
-    padding-top: 18px;
-    border-top: 1px solid var(--line);
-    color: var(--muted);
-    font-size: 12px;
-    font-family:'IBM Plex Mono', monospace;
+    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; font-family:'IBM Plex Mono', monospace;
   }
+
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border: 2px solid var(--line); border-top-color: var(--z-axis);
+    display:inline-block; margin-right:8px; vertical-align: -3px;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
 
   @media (max-width: 560px){
     .intro .facts{ grid-template-columns: 1fr; }
@@ -344,286 +250,200 @@
 
   <!-- INTRO -->
   <section class="screen active intro" id="screen-intro">
-    <h1>Quel pipeline pour <span class="accent">tes</span> données de diffusion&nbsp;?</h1>
-    <p class="lede">Réponds à une série de questions sur tes données, ton environnement et tes besoins d'analyse. Le résultat est calculé à partir d'un tableau comparatif de 15 pipelines de preprocessing dMRI, croisés sur ~50 critères techniques.</p>
+    <h1>Which pipeline fits <span class="accent">your</span> diffusion data?</h1>
+    <p class="lede">Answer a series of questions about your data, your compute environment and your analysis needs. The result is computed from a comparison spreadsheet per population, loaded directly from this repository.</p>
 
     <div class="facts">
-      <div class="fact"><b>15</b><span>pipelines comparés</span></div>
-      <div class="fact"><b>~50</b><span>critères techniques croisés</span></div>
-      <div class="fact"><b>7</b><span>questions à répondre</span></div>
+      <div class="fact"><b id="factCount">—</b><span>pipelines compared</span></div>
+      <div class="fact"><b>~35</b><span>technical criteria</span></div>
+      <div class="fact"><b>7</b><span>questions to answer</span></div>
     </div>
 
-    <div class="q-eyebrow">Population étudiée</div>
+    <div class="q-eyebrow">Study population</div>
     <div class="theme-picker" id="themePicker">
-      <button class="theme-btn selected" data-theme="adulte">
-        <strong>Humain adulte</strong>
-        <span>Disponible — sévère, vieillissement inclus</span>
+      <button class="theme-btn selected" data-theme="adult" data-file="data/adult.xlsx">
+        <strong>Adult human</strong>
+        <span>data/adult.xlsx</span>
       </button>
-      <button class="theme-btn" data-theme="pediatrique" disabled>
-        <strong>Humain jeune (pédiatrique)</strong>
-        <span>Bientôt disponible</span>
+      <button class="theme-btn" data-theme="pediatric" data-file="data/pediatric.xlsx">
+        <strong>Young human (pediatric)</strong>
+        <span>data/pediatric.xlsx</span>
       </button>
-      <button class="theme-btn" data-theme="animal" disabled>
-        <strong>Petit animal</strong>
-        <span>Bientôt disponible</span>
+      <button class="theme-btn" data-theme="animal" data-file="data/animal.xlsx">
+        <strong>Small animal</strong>
+        <span>data/animal.xlsx</span>
       </button>
     </div>
+    <div class="load-msg" id="loadMsg"></div>
 
-    <button class="btn-primary" id="startBtn">Commencer →</button>
+    <button class="btn-primary" id="startBtn">Start →</button>
   </section>
 
   <!-- QUIZ -->
   <section class="screen" id="screen-quiz">
-    <div class="q-eyebrow" id="qEyebrow">Données</div>
+    <div class="q-eyebrow" id="qEyebrow">Data</div>
     <h2 class="q-title" id="qTitle">—</h2>
     <div class="options" id="qOptions"></div>
     <div class="q-nav">
-      <button class="btn-ghost" id="backBtn">← Retour</button>
-      <button class="btn-primary" id="nextBtn" disabled>Suivant →</button>
+      <button class="btn-ghost" id="backBtn">← Back</button>
+      <button class="btn-primary" id="nextBtn" disabled>Next →</button>
     </div>
   </section>
 
   <!-- RESULTS -->
   <section class="screen" id="screen-result">
     <div class="result-head">
-      <div class="q-eyebrow">Résultat</div>
-      <h2>Ton classement de pipelines</h2>
-      <p>Basé sur tes réponses, filtré sur les contraintes bloquantes puis classé par score pondéré sur tes préférences.</p>
+      <div class="q-eyebrow">Result</div>
+      <h2>Your pipeline ranking</h2>
+      <p>Based on your answers, filtered on blocking constraints then ranked by weighted score on your preferences.</p>
     </div>
     <div id="filtersNote"></div>
     <div id="rankList"></div>
     <div class="q-nav" style="margin-top:10px;">
-      <button class="btn-ghost" id="restartBtn">↺ Recommencer</button>
+      <button class="btn-ghost" id="restartBtn">↺ Restart</button>
     </div>
   </section>
 
   <footer class="foot">
-    Données humain adulte — module pédiatrique &amp; petit animal à venir. Prototype pour usage interne.
+    Data loaded from <span id="footFile" class="mono">data/adult.xlsx</span> — edit this spreadsheet to update pipelines, no code changes needed.
   </footer>
 </div>
 
 <script>
-/* ======================= DATA: 15 pipelines, humain adulte ======================= */
-const PIPELINES = [
-  { id:"qsiprep", name:"QSIPrep",
-    desc:"BIDS App Python/NiPype très polyvalent : seul avec TORTOISE à gérer le compressed sensing, GPU, tractographie avancée (ACT+SIFT2), rapport HTML complet, développement très actif.",
-    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:3, resume:true,
-    scalability:["local","hpc"], hpcLevel:2, activity:4,
-    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
-    tractography:true, dki:true, noddi:true, freewater:true, fodf:true,
-    qcBoilerplate:true, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
-    multiShell:true, cartesian:true, compressedSensing:true, testRetest:true, signalDrift:false },
+/* =========================================================================
+   DATA LOADING FROM AN EXCEL FILE ("Pipelines" sheet)
+   Expected format:
+   - Col A: criterion_id (technical key, e.g. multiShell, interface, activity...)
+   - Col B: criterion_label (human-readable label, ignored by the code)
+   - Col C, D, E...: one column per pipeline, header = pipeline name
+   Accepted boolean values: yes/no, true/false, 1/0, ✔/✘, x
+   ========================================================================= */
 
-  { id:"tractoflow", name:"Tractoflow",
-    desc:"Nextflow DSL1, scalable HPC + cloud (AWS/GCP/Azure) nativement, reprise sur erreur native Nextflow, orienté tractographie (PFT), actif.",
-    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:true,
-    scalability:["hpc","cloud"], hpcLevel:2, activity:3,
-    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
-    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+const BOOL_TRUE = new Set(["yes","true","1","✔","x","oui","vrai"]);
 
-  { id:"sftractomics", name:"sf-tractomics (scilpy-flow)",
-    desc:"Nextflow DSL2, scripts scilpy modifiables et développement Python ouvert. Le plus complet sur les modèles avancés : NODDI, free-water, tractométrie. Très actif (jeune projet).",
-    interface:"terminal", gpu:true, parallel:true, polyvalent:true, modifiability:3, resume:true,
-    scalability:["hpc","cloud"], hpcLevel:2, activity:4,
-    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:true, containerized:true,
-    tractography:true, dki:false, noddi:true, freewater:true, fodf:true,
-    qcBoilerplate:true, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:true, tractometry:true,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+function parseBool(v){
+  if(v === null || v === undefined) return false;
+  return BOOL_TRUE.has(String(v).trim().toLowerCase());
+}
+function parseList(v){
+  if(!v) return [];
+  return String(v).split(/[,;]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+}
+function parseNum(v, fallback){
+  const n = parseFloat(v);
+  return isNaN(n) ? fallback : n;
+}
 
-  { id:"prequal", name:"PreQual",
-    desc:"Orienté vérification qualité (EddyQuad), pas de tractographie ni de brain extraction dédiée. Rapport HTML solide, maintenance lente mais stable.",
-    interface:"terminal", gpu:true, parallel:true, polyvalent:false, modifiability:1, resume:false,
-    scalability:["hpc"], hpcLevel:1, activity:2,
-    bids:false, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
-    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+// criterion_id -> how to convert it from the Excel cell
+const BOOL_FIELDS = ["gpu","parallel","polyvalent","resume","bids","gradientCheck","mppca","gibbs","b1","motion",
+  "fieldmapless","htmlReport","containerized","tractography","dki","noddi","freewater","fodf","qcBoilerplate",
+  "qcQuant","qcVisual","connectivity","biasCorrection","tractometry","multiShell","cartesian","compressedSensing",
+  "testRetest","signalDrift"];
+const NUM_FIELDS = { modifiability:1, hpcLevel:1, activity:1 };
 
-  { id:"mrtrix3", name:"MRtrix3_connectome",
-    desc:"Pipeline connectomique de référence : matrices de connectivité structurelle SIFT2, fODF MSMT-CSD, HPC (Slurm). Maintenance ralentie depuis 2022.",
-    interface:"terminal", gpu:false, parallel:true, polyvalent:false, modifiability:2, resume:false,
-    scalability:["hpc"], hpcLevel:1, activity:2,
-    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
-    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
-    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+async function loadPipelinesFromXlsx(url){
+  const res = await fetch(url, { cache: "no-store" });
+  if(!res.ok) throw new Error(`File not found (${res.status}): ${url}`);
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheetName = wb.SheetNames.includes("Pipelines") ? "Pipelines" : wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if(!rows.length) throw new Error("'Pipelines' sheet is empty.");
 
-  { id:"dmriprep", name:"dMRIPrep",
-    desc:"NiPype modulaire dans l'esprit fMRIPrep. Denoising minimal (pas de MP-PCA/Gibbs/B1/motion correction listés), rapport HTML présent, développement ralenti depuis 2021.",
-    interface:"terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:true,
-    scalability:["hpc"], hpcLevel:1, activity:2,
-    bids:true, gradientCheck:false, mppca:false, gibbs:false, b1:false, motion:false, fieldmapless:true, htmlReport:true, containerized:true,
-    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+  const header = rows[0];
+  const pipelineCols = []; // {name, colIndex}
+  for(let c = 2; c < header.length; c++){
+    const name = String(header[c] || "").trim();
+    if(name) pipelineCols.push({ name, col: c });
+  }
+  if(!pipelineCols.length) throw new Error("No pipeline column detected on row 1 (starting from column C).");
 
-  { id:"designer", name:"DESIGNER (PyDesigner)",
-    desc:"Spécialisé kurtosis : modèle DKI natif, seul à documenter la reproductibilité test-retest et une correction de dérive du signal dédiée. Actif (v2, 2023-2024).",
-    interface:"terminal", gpu:false, parallel:true, polyvalent:false, modifiability:3, resume:false,
-    scalability:["local","hpc"], hpcLevel:1, activity:3,
-    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:false, dki:true, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:true },
+  const byId = {}; // criterion_id -> row array
+  for(let r = 1; r < rows.length; r++){
+    const id = String(rows[r][0] || "").trim();
+    if(id) byId[id] = rows[r];
+  }
 
-  { id:"tracula", name:"TRACULA (FreeSurfer)",
-    desc:"Scripts shell FreeSurfer modifiables manuellement mais pipeline quasi-figé, dépendant des mises à jour FreeSurfer. Tractographie probabiliste (MCMC/probtrack).",
-    interface:"terminal", gpu:false, parallel:false, polyvalent:false, modifiability:2, resume:false,
-    scalability:["local","hpc"], hpcLevel:1, activity:1,
-    bids:true, gradientCheck:false, mppca:false, gibbs:false, b1:false, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:true, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:false, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+  const pipelines = pipelineCols.map(({name, col})=>{
+    const get = (id)=> (byId[id] ? byId[id][col] : "");
+    const p = { id: name.toLowerCase().replace(/[^a-z0-9]+/g,"-"), name };
+    p.desc = String(get("desc") || "").trim();
+    p.interface = String(get("interface") || "").trim().toLowerCase();
+    p.scalability = parseList(get("scalability"));
+    for(const [field, fallback] of Object.entries(NUM_FIELDS)){
+      p[field] = parseNum(get(field), fallback);
+    }
+    for(const field of BOOL_FIELDS){
+      p[field] = parseBool(get(field));
+    }
+    return p;
+  });
 
-  { id:"brainlife", name:"brainlife.io",
-    desc:"Plateforme web cloud-native, pas d'installation locale, apps custom. NODDI, fODF, tractométrie. Mises à jour continues.",
-    interface:"web", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:true,
-    scalability:["cloud"], hpcLevel:2, activity:4,
-    bids:true, gradientCheck:true, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:true, containerized:true,
-    tractography:true, dki:false, noddi:true, freewater:false, fodf:true,
-    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:true, biasCorrection:false, tractometry:true,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
+  return pipelines;
+}
 
-  { id:"micapipe", name:"MICApipe",
-    desc:"Connectomique multimodale (18 parcellations), reprise sur erreur, actif (labo MICA). GitHub, installation docker/singularity.",
-    interface:"terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:true,
-    scalability:["hpc"], hpcLevel:1, activity:3,
-    bids:true, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:true,
-    tractography:true, dki:false, noddi:false, freewater:false, fodf:true,
-    qcBoilerplate:true, qcQuant:true, qcVisual:false, connectivity:true, biasCorrection:true, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:false },
-
-  { id:"tortoise", name:"TORTOISE (DIFFPREP)",
-    desc:"GUI + terminal, C++ binaire. Seul avec QSIPrep à supporter le compressed sensing. Correction DR-BUDDI difféomorphique, mais pipeline peu extensible et peu de mises à jour.",
-    interface:"gui+terminal", gpu:false, parallel:true, polyvalent:false, modifiability:1, resume:false,
-    scalability:["local","hpc"], hpcLevel:1, activity:2,
-    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:false, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:false, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:true, compressedSensing:true, testRetest:false, signalDrift:false },
-
-  { id:"acid", name:"ACID (SPM toolbox)",
-    desc:"Environnement MATLAB/SPM batch personnalisable, denoising msPOAS, modèle DKI. Pas de conteneurisation officielle.",
-    interface:"gui", gpu:false, parallel:false, polyvalent:true, modifiability:3, resume:false,
-    scalability:["local"], hpcLevel:1, activity:3,
-    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:true, htmlReport:true, containerized:false,
-    tractography:false, dki:true, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:true, signalDrift:false },
-
-  { id:"hcp", name:"HCP Minimal Preprocessing",
-    desc:"Standard historique du Human Connectome Project (FreeSurfer + FSL), fieldmap GRE. Peu de mises à jour dMRI récentes, mais très éprouvé et adapté production HPC.",
-    interface:"terminal", gpu:true, parallel:true, polyvalent:false, modifiability:1, resume:false,
-    scalability:["hpc"], hpcLevel:2, activity:2,
-    bids:false, gradientCheck:false, mppca:true, gibbs:true, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:false, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
-
-  { id:"dtiprep", name:"DTIPrep / dtiplayground",
-    desc:"Modules Python personnalisables, protocole QC dédié, gradient direction sanity check. GUI + terminal.",
-    interface:"gui+terminal", gpu:false, parallel:true, polyvalent:true, modifiability:3, resume:false,
-    scalability:["local","hpc"], hpcLevel:1, activity:3,
-    bids:false, gradientCheck:true, mppca:true, gibbs:false, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:false, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
-
-  { id:"brainsuite", name:"BrainSuite BDP",
-    desc:"GUI + terminal tout-en-un desktop : BrainSuite CSE pour l'extraction cérébrale, SVREG, dashboard QC intégré. Actif (v23a, releases régulières).",
-    interface:"gui+terminal", gpu:true, parallel:true, polyvalent:true, modifiability:2, resume:false,
-    scalability:["hpc"], hpcLevel:1, activity:3,
-    bids:true, gradientCheck:false, mppca:true, gibbs:false, b1:true, motion:true, fieldmapless:false, htmlReport:false, containerized:true,
-    tractography:true, dki:false, noddi:false, freewater:false, fodf:false,
-    qcBoilerplate:false, qcQuant:true, qcVisual:true, connectivity:false, biasCorrection:false, tractometry:false,
-    multiShell:true, cartesian:false, compressedSensing:false, testRetest:false, signalDrift:false },
-];
-
-/* ======================= QUESTIONS ======================= */
-// Each option: { label, sub?, filter?: (p)=>bool, score?: (p)=>number, tag?: string }
+/* ======================= QUESTIONS (independent of the Excel file) ======================= */
 const QUESTIONS = [
-  { id:"acq", eyebrow:"Données brutes", type:"single",
-    title:"De quel type sont tes données d'acquisition ?",
+  { id:"acq", eyebrow:"Raw data", type:"single",
+    title:"What type of acquisition are your data?",
     options:[
-      { label:"Single shell uniquement", tag:"single-shell",
-        filter:null },
-      { label:"Multi-shell (plusieurs valeurs de b)", tag:"multi-shell",
-        filter:p=>p.multiShell===true },
-      { label:"Acquisition compressed sensing / non cartésienne", tag:"compressed-sensing",
-        filter:p=>p.compressedSensing===true },
-      { label:"Je ne sais pas", tag:"unsure", filter:null },
+      { label:"Single shell only", filter:null },
+      { label:"Multi-shell (multiple b-values)", filter:p=>p.multiShell===true },
+      { label:"Compressed sensing / non-Cartesian acquisition", filter:p=>p.compressedSensing===true },
+      { label:"Not sure", filter:null },
     ]},
-
-  { id:"tracto", eyebrow:"Objectif d'analyse", type:"single",
-    title:"As-tu besoin d'aller jusqu'à la tractographie ?",
+  { id:"tracto", eyebrow:"Analysis goal", type:"single",
+    title:"Do you need to run tractography?",
     options:[
-      { label:"Oui, la tractographie fait partie de l'analyse", tag:"tracto-yes",
-        filter:p=>p.tractography===true },
-      { label:"Non, seulement le preprocessing", tag:"tracto-no", filter:null },
-      { label:"Je ne sais pas encore", tag:"unsure", filter:null },
+      { label:"Yes, tractography is part of the analysis", filter:p=>p.tractography===true },
+      { label:"No, preprocessing only", filter:null },
+      { label:"Not sure yet", filter:null },
     ]},
-
-  { id:"compute", eyebrow:"Environnement", type:"single",
-    title:"Quel environnement de calcul as-tu à disposition ?",
+  { id:"compute", eyebrow:"Environment", type:"single",
+    title:"What compute environment do you have access to?",
     options:[
-      { label:"Mon ordinateur uniquement (local)", tag:"local",
-        score:p=>p.scalability.includes("local") ? 3 : 0 },
-      { label:"Cluster HPC (Slurm / SGE / PBS)", tag:"hpc",
-        score:p=>(p.scalability.includes("hpc")?2:0) + (p.hpcLevel===2?2:0) },
-      { label:"Cloud (AWS/GCP/Azure) ou plateforme web", tag:"cloud",
-        score:p=>p.scalability.includes("cloud") ? 4 : 0 },
-      { label:"Peu importe", tag:"any", score:null },
+      { label:"My own computer only (local)", score:p=>p.scalability.includes("local") ? 3 : 0 },
+      { label:"HPC cluster (Slurm / SGE / PBS)", score:p=>(p.scalability.includes("hpc")?2:0) + (p.hpcLevel===2?2:0) },
+      { label:"Cloud (AWS/GCP/Azure) or a web platform", score:p=>p.scalability.includes("cloud") ? 4 : 0 },
+      { label:"Doesn't matter", score:null },
     ]},
-
-  { id:"interface", eyebrow:"Usage quotidien", type:"single",
-    title:"Quel type d'interface préfères-tu utiliser ?",
+  { id:"interface", eyebrow:"Day-to-day use", type:"single",
+    title:"What kind of interface do you prefer to work with?",
     options:[
-      { label:"Terminal / ligne de commande, aucun problème", tag:"cli",
-        score:p=>p.interface==="terminal" ? 3 : 0 },
-      { label:"Une interface graphique ou une plateforme web", tag:"gui",
-        score:p=>(p.interface==="gui"||p.interface==="gui+terminal"||p.interface==="web") ? 3 : 0 },
-      { label:"Peu importe, je veux juste que ça marche", tag:"any", score:null },
+      { label:"Terminal / command line, no problem", score:p=>p.interface==="terminal" ? 3 : 0 },
+      { label:"A graphical interface or a web platform", score:p=>(p.interface==="gui"||p.interface==="gui+terminal"||p.interface==="web") ? 3 : 0 },
+      { label:"Doesn't matter, I just want it to work", score:null },
     ]},
-
-  { id:"custom", eyebrow:"Personnalisation", type:"single",
-    title:"Quelle importance donnes-tu à la possibilité de modifier le pipeline (code, paramètres) ?",
+  { id:"custom", eyebrow:"Customization", type:"single",
+    title:"How important is it to be able to modify the pipeline (code, parameters)?",
     options:[
-      { label:"Très importante, je veux pouvoir tout ajuster", tag:"custom-high",
-        score:p=>p.modifiability * 2 + (p.polyvalent?2:0) },
-      { label:"Un peu, quelques paramètres suffisent", tag:"custom-mid",
-        score:p=>p.modifiability },
-      { label:"Aucune, je veux du clé-en-main fiable", tag:"custom-low",
-        score:p=>(3-p.modifiability) + (p.containerized?2:0) + (p.htmlReport?1:0) },
+      { label:"Very important, I want full control", score:p=>p.modifiability * 2 + (p.polyvalent?2:0) },
+      { label:"Somewhat, a few parameters are enough", score:p=>p.modifiability },
+      { label:"Not important, I want a reliable out-of-the-box tool", score:p=>(3-p.modifiability) + (p.containerized?2:0) + (p.htmlReport?1:0) },
     ]},
-
-  { id:"advanced", eyebrow:"Besoins avancés", type:"multi",
-    title:"As-tu besoin de méthodes ou analyses avancées particulières ?",
+  { id:"advanced", eyebrow:"Advanced needs", type:"multi",
+    title:"Do you need any specific advanced methods or analyses?",
     options:[
-      { label:"Modèles avancés (NODDI, DKI, free-water)", tag:"models",
-        score:p=>(p.noddi?3:0)+(p.dki?3:0)+(p.freewater?3:0) },
-      { label:"Reconstruction fODF / tractographie avancée (CSD)", tag:"fodf",
-        score:p=>p.fodf ? 4 : 0 },
-      { label:"Connectomique (matrices de connectivité, tractométrie)", tag:"connectomics",
-        score:p=>(p.connectivity?3:0)+(p.tractometry?3:0)+(p.biasCorrection?2:0) },
-      { label:"QC quantitatif poussé (rapports, détection d'outliers)", tag:"qc",
-        score:p=>(p.qcQuant?2:0)+(p.qcBoilerplate?2:0)+(p.qcVisual?2:0)+(p.htmlReport?1:0) },
-      { label:"Rien de spécial", tag:"none", score:null },
+      { label:"Advanced models (NODDI, DKI, free-water)", score:p=>(p.noddi?3:0)+(p.dki?3:0)+(p.freewater?3:0) },
+      { label:"fODF reconstruction / advanced tractography (CSD)", score:p=>p.fodf ? 4 : 0 },
+      { label:"Connectomics (connectivity matrices, tractometry)", score:p=>(p.connectivity?3:0)+(p.tractometry?3:0)+(p.biasCorrection?2:0) },
+      { label:"Advanced quantitative QC (reports, outlier detection)", score:p=>(p.qcQuant?2:0)+(p.qcBoilerplate?2:0)+(p.qcVisual?2:0)+(p.htmlReport?1:0) },
+      { label:"Nothing specific", score:null },
     ]},
-
-  { id:"maintenance", eyebrow:"Pérennité", type:"single",
-    title:"Le pipeline doit-il être activement maintenu à long terme ?",
+  { id:"maintenance", eyebrow:"Longevity", type:"single",
+    title:"Does the pipeline need to be actively maintained long-term?",
     options:[
-      { label:"Oui, c'est important pour moi", tag:"maint-yes",
-        score:p=>p.activity * 2 + (p.resume?1:0) },
-      { label:"Peu importe, je regarde surtout les fonctionnalités", tag:"any", score:null },
+      { label:"Yes, that's important to me", score:p=>p.activity * 2 + (p.resume?1:0) },
+      { label:"Doesn't matter, I mostly care about features", score:null },
     ]},
 ];
 
 /* ======================= ENGINE ======================= */
+let PIPELINES = [];
 let current = 0;
-const answers = new Array(QUESTIONS.length).fill(null).map(()=>[]); // array of selected option indices per question
+let answers = [];
+let selectedFile = "data/adult.xlsx";
 
 const screenIntro = document.getElementById('screen-intro');
 const screenQuiz = document.getElementById('screen-quiz');
@@ -632,17 +452,56 @@ const streamlineWrap = document.getElementById('streamlineWrap');
 const fillPath = document.getElementById('fill');
 const stepLabel = document.getElementById('stepLabel');
 const stepPct = document.getElementById('stepPct');
+const loadMsg = document.getElementById('loadMsg');
+const startBtn = document.getElementById('startBtn');
+const factCount = document.getElementById('factCount');
+const footFile = document.getElementById('footFile');
 
-document.getElementById('startBtn').addEventListener('click', ()=>{
+function resetAnswers(){
+  answers = QUESTIONS.map(()=>[]);
+}
+resetAnswers();
+
+async function initTheme(file){
+  loadMsg.className = 'load-msg';
+  loadMsg.innerHTML = '<span class="spinner"></span>Loading ' + file + '…';
+  startBtn.disabled = true;
+  try{
+    PIPELINES = await loadPipelinesFromXlsx(file);
+    selectedFile = file;
+    factCount.textContent = PIPELINES.length;
+    footFile.textContent = file;
+    loadMsg.className = 'load-msg';
+    loadMsg.textContent = `✓ ${PIPELINES.length} pipelines loaded from ${file}`;
+    startBtn.disabled = false;
+  }catch(err){
+    loadMsg.className = 'load-msg err';
+    loadMsg.textContent = `Error: ${err.message} — make sure the file exists under /data and the page is served over http (not file://).`;
+    startBtn.disabled = true;
+  }
+}
+
+document.getElementById('themePicker').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.theme-btn');
+  if(!btn) return;
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  initTheme(btn.dataset.file);
+});
+
+startBtn.addEventListener('click', ()=>{
+  if(!PIPELINES.length) return;
   screenIntro.classList.remove('active');
   screenQuiz.classList.add('active');
   streamlineWrap.style.display = 'block';
+  current = 0;
+  resetAnswers();
   renderQuestion();
 });
 
 document.getElementById('restartBtn').addEventListener('click', ()=>{
   current = 0;
-  for(let i=0;i<answers.length;i++) answers[i] = [];
+  resetAnswers();
   screenResult.classList.remove('active');
   screenIntro.classList.add('active');
   streamlineWrap.style.display = 'none';
@@ -701,8 +560,7 @@ function renderQuestion(){
     wrap.appendChild(el);
   });
   document.getElementById('nextBtn').disabled = answers[current].length === 0;
-  document.getElementById('nextBtn').textContent = current === QUESTIONS.length-1 ? 'Voir le résultat →' : 'Suivant →';
-  document.getElementById('backBtn').style.visibility = 'visible';
+  document.getElementById('nextBtn').textContent = current === QUESTIONS.length-1 ? 'See result →' : 'Next →';
   updateProgress();
 }
 
@@ -713,7 +571,6 @@ function computeResults(){
 
   let pool = PIPELINES.slice();
   const appliedFilters = [];
-  const scoreTags = [];
 
   QUESTIONS.forEach((q, qi)=>{
     answers[qi].forEach(oi=>{
@@ -733,17 +590,16 @@ function computeResults(){
 
   const scored = pool.map(p=>{
     let total = 0;
-    const matched = [];
     QUESTIONS.forEach((q, qi)=>{
       answers[qi].forEach(oi=>{
         const opt = q.options[oi];
         if(opt.score){
           const pts = opt.score(p);
-          if(pts > 0){ total += pts; matched.push(opt.tag); }
+          if(pts > 0) total += pts;
         }
       });
     });
-    return { p, total, matched };
+    return { p, total };
   });
 
   scored.sort((a,b)=> b.total - a.total || b.p.activity - a.p.activity);
@@ -753,15 +609,18 @@ function computeResults(){
 
   const noteEl = document.getElementById('filtersNote');
   if(fallback){
-    noteEl.innerHTML = `<div class="filters-note">Aucun pipeline ne remplit toutes tes contraintes exactement — classement recalculé sur l'ensemble des 15 pipelines par score de préférence uniquement.</div>`;
+    noteEl.innerHTML = `<div class="filters-note">No pipeline meets all of your constraints exactly — ranking recalculated across all ${PIPELINES.length} pipelines by preference score only.</div>`;
   } else if(appliedFilters.length){
-    noteEl.innerHTML = `<div class="filters-note">Filtres bloquants appliqués : ${appliedFilters.join(' · ')} — ${pool.length}/${PIPELINES.length} pipelines restants avant classement par score.</div>`;
+    noteEl.innerHTML = `<div class="filters-note">Blocking filters applied: ${appliedFilters.join(' · ')} — ${pool.length}/${PIPELINES.length} pipelines remaining before scoring.</div>`;
   } else {
     noteEl.innerHTML = '';
   }
 
   const listEl = document.getElementById('rankList');
   listEl.innerHTML = '';
+  if(!top.length){
+    listEl.innerHTML = `<div class="filters-note">No pipeline available in this data file.</div>`;
+  }
   top.forEach((entry, i)=>{
     const p = entry.p;
     const pct = maxScore>0 ? Math.max(6, Math.round(entry.total / maxScore * 100)) : 0;
@@ -770,9 +629,9 @@ function computeResults(){
     card.innerHTML = `
       <div class="rank-row">
         <div>
-          <div class="rank-num">RANG ${i+1}${i===0 ? ' · MEILLEUR MATCH' : ''}</div>
+          <div class="rank-num">RANK ${i+1}${i===0 ? ' · BEST MATCH' : ''}</div>
           <div class="rank-name">${p.name}</div>
-          <div class="rank-desc">${p.desc}</div>
+          <div class="rank-desc">${p.desc || ''}</div>
         </div>
         <div class="rank-score">
           <b>${entry.total}</b>
@@ -782,10 +641,10 @@ function computeResults(){
       <div class="score-bar"><i style="width:${pct}%"></i></div>
       <div class="chips">
         ${p.interface ? `<span class="chip">${p.interface}</span>` : ''}
-        ${p.containerized ? `<span class="chip">conteneurisé</span>` : ''}
-        ${p.tractography ? `<span class="chip">tractographie</span>` : ''}
+        ${p.containerized ? `<span class="chip">containerized</span>` : ''}
+        ${p.tractography ? `<span class="chip">tractography</span>` : ''}
         ${p.gpu ? `<span class="chip">GPU</span>` : ''}
-        ${p.activity>=3 ? `<span class="chip">maintenance active</span>` : `<span class="chip warn">maintenance lente</span>`}
+        ${p.activity>=3 ? `<span class="chip">actively maintained</span>` : `<span class="chip warn">slow maintenance</span>`}
       </div>
     `;
     listEl.appendChild(card);
@@ -794,6 +653,9 @@ function computeResults(){
   screenQuiz.classList.remove('active');
   screenResult.classList.add('active');
 }
+
+// Initial load (adult theme by default)
+initTheme(selectedFile);
 </script>
 </body>
 </html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamline — Pediatric dMRI pipeline finder</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <a class="brand" href="index.html"><span class="dot3"><span></span><span></span><span></span></span> streamline</a>
+    <div class="theme-tag mono">Pediatric human</div>
+  </header>
+
+  <div class="streamline-wrap" id="streamlineWrap" style="display:none;">
+    <svg viewBox="0 0 700 46" preserveAspectRatio="none">
+      <path id="track" d="M2,23 C120,4 180,42 260,23 C340,4 400,42 480,23 C560,4 620,42 698,23"
+            fill="none" stroke="#2A2F3D" stroke-width="3" stroke-linecap="round"/>
+      <path id="fill" d="M2,23 C120,4 180,42 260,23 C340,4 400,42 480,23 C560,4 620,42 698,23"
+            fill="none" stroke="url(#grad)" stroke-width="3" stroke-linecap="round"
+            stroke-dasharray="1000" stroke-dashoffset="1000"/>
+      <defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#E8564A"/>
+          <stop offset="50%" stop-color="#63BF7C"/>
+          <stop offset="100%" stop-color="#4C8CE0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="streamline-label">
+      <span id="stepLabel">Question 1 / 8</span>
+      <span id="stepPct">0%</span>
+    </div>
+  </div>
+
+  <section class="screen active intro" id="screen-intro">
+    <h1>Which pipeline fits <span class="accent">your</span> pediatric diffusion data?</h1>
+    <p class="lede">Answer a series of questions about your cohort, data and analysis needs. ⚠️ This category currently ships with placeholder/example data — replace <code class="mono">data/pediatric.xlsx</code> with your real comparison table when it's ready.</p>
+
+    <div class="facts">
+      <div class="fact"><b id="factCount">—</b><span>pipelines compared</span></div>
+      <div class="fact"><b>~36</b><span>technical criteria</span></div>
+      <div class="fact"><b>8</b><span>questions to answer</span></div>
+    </div>
+
+    <div class="load-msg" id="loadMsg"></div>
+    <button class="btn-primary" id="startBtn">Start →</button>
+  </section>
+
+  <section class="screen" id="screen-quiz">
+    <div class="q-eyebrow" id="qEyebrow">Data</div>
+    <h2 class="q-title" id="qTitle">—</h2>
+    <div class="options" id="qOptions"></div>
+    <div class="q-nav">
+      <button class="btn-ghost" id="backBtn">← Back</button>
+      <button class="btn-primary" id="nextBtn" disabled>Next →</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-result">
+    <div class="result-head">
+      <div class="q-eyebrow">Result</div>
+      <h2>Your pipeline ranking</h2>
+      <p>Based on your answers, filtered on blocking constraints then ranked by weighted score on your preferences.</p>
+    </div>
+    <div id="filtersNote"></div>
+    <div id="rankList"></div>
+    <div class="q-nav" style="margin-top:10px;">
+      <button class="btn-ghost" id="restartBtn">↺ Restart</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Data loaded from <span id="footFile" class="mono">data/pediatric.xlsx</span> — edit this spreadsheet to update pipelines, no code changes needed. · <a class="btn-ghost" href="index.html" style="padding:2px 8px;">← All categories</a>
+  </footer>
+</div>
+
+<script>
+window.DATA_FILE = "data/pediatric.xlsx";
+
+window.QUESTIONS = [
+  { id:"acq", eyebrow:"Raw data", type:"single",
+    title:"What type of acquisition are your data?",
+    options:[
+      { label:"Single shell only", filter:null },
+      { label:"Multi-shell (multiple b-values)", filter:p=>p.multiShell===true },
+      { label:"Compressed sensing / non-Cartesian acquisition", filter:p=>p.compressedSensing===true },
+      { label:"Not sure", filter:null },
+    ]},
+  // --- Pediatric-specific question: not present in the adult questionnaire.
+  // "ageRange" is a free-text criterion (pass-through from the Excel file,
+  // see engine.js) — add an "ageRange" row in data/pediatric.xlsx to use it.
+  { id:"age", eyebrow:"Cohort", type:"single",
+    title:"What age range best matches your cohort?",
+    options:[
+      { label:"Neonates / infants (0–2 years)", score:p=>(String(p.ageRange||"").toLowerCase().includes("neonat")||String(p.ageRange||"").toLowerCase().includes("infant")) ? 4 : 0 },
+      { label:"Children (3–12 years)", score:p=>String(p.ageRange||"").toLowerCase().includes("child") ? 4 : 0 },
+      { label:"Adolescents (13–17 years)", score:p=>String(p.ageRange||"").toLowerCase().includes("adolescent") ? 4 : 0 },
+      { label:"Not sure / spans multiple ranges", score:null },
+    ]},
+  { id:"tracto", eyebrow:"Analysis goal", type:"single",
+    title:"Do you need to run tractography?",
+    options:[
+      { label:"Yes, tractography is part of the analysis", filter:p=>p.tractography===true },
+      { label:"No, preprocessing only", filter:null },
+      { label:"Not sure yet", filter:null },
+    ]},
+  { id:"compute", eyebrow:"Environment", type:"single",
+    title:"What compute environment do you have access to?",
+    options:[
+      { label:"My own computer only (local)", score:p=>p.scalability.includes("local") ? 3 : 0 },
+      { label:"HPC cluster (Slurm / SGE / PBS)", score:p=>(p.scalability.includes("hpc")?2:0) + (p.hpcLevel===2?2:0) },
+      { label:"Cloud (AWS/GCP/Azure) or a web platform", score:p=>p.scalability.includes("cloud") ? 4 : 0 },
+      { label:"Doesn't matter", score:null },
+    ]},
+  { id:"interface", eyebrow:"Day-to-day use", type:"single",
+    title:"What kind of interface do you prefer to work with?",
+    options:[
+      { label:"Terminal / command line, no problem", score:p=>p.interface==="terminal" ? 3 : 0 },
+      { label:"A graphical interface or a web platform", score:p=>(p.interface==="gui"||p.interface==="gui+terminal"||p.interface==="web") ? 3 : 0 },
+      { label:"Doesn't matter, I just want it to work", score:null },
+    ]},
+  { id:"custom", eyebrow:"Customization", type:"single",
+    title:"How important is it to be able to modify the pipeline (code, parameters)?",
+    options:[
+      { label:"Very important, I want full control", score:p=>p.modifiability * 2 + (p.polyvalent?2:0) },
+      { label:"Somewhat, a few parameters are enough", score:p=>p.modifiability },
+      { label:"Not important, I want a reliable out-of-the-box tool", score:p=>(3-p.modifiability) + (p.containerized?2:0) + (p.htmlReport?1:0) },
+    ]},
+  { id:"advanced", eyebrow:"Advanced needs", type:"multi",
+    title:"Do you need any specific advanced methods or analyses?",
+    options:[
+      { label:"Advanced models (NODDI, DKI, free-water)", score:p=>(p.noddi?3:0)+(p.dki?3:0)+(p.freewater?3:0) },
+      { label:"fODF reconstruction / advanced tractography (CSD)", score:p=>p.fodf ? 4 : 0 },
+      { label:"Connectomics (connectivity matrices, tractometry)", score:p=>(p.connectivity?3:0)+(p.tractometry?3:0)+(p.biasCorrection?2:0) },
+      { label:"Advanced quantitative QC (reports, outlier detection)", score:p=>(p.qcQuant?2:0)+(p.qcBoilerplate?2:0)+(p.qcVisual?2:0)+(p.htmlReport?1:0) },
+      { label:"Nothing specific", score:null },
+    ]},
+  { id:"maintenance", eyebrow:"Longevity", type:"single",
+    title:"Does the pipeline need to be actively maintained long-term?",
+    options:[
+      { label:"Yes, that's important to me", score:p=>p.activity * 2 + (p.resume?1:0) },
+      { label:"Doesn't matter, I mostly care about features", score:null },
+    ]},
+];
+</script>
+<script src="engine.js"></script>
+</body>
+</html>

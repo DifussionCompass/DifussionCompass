@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamline — Suggest a pipeline</title>
+<link rel="stylesheet" href="style.css">
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+<div class="app">
+<script src="theme.js"></script>
+
+  <header class="top">
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Streamline logo"> Diffusion Compass</a>
+    <div class="top-right">
+
+      <div class="theme-tag mono">dMRI pipeline finder</div>
+
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <a class="tab-btn" href="index.html">Home</a>
+    <a class="tab-btn active" href="suggest-pipeline.html">Suggest a pipeline</a>
+    <a class="tab-btn" href="suggest-criterion.html">Suggest a criterion / question</a>
+  </div>
+
+  <div class="q-eyebrow">Contribute</div>
+  <h2 class="q-title" style="margin-bottom:6px;">Suggest a pipeline</h2>
+  <p class="lede" style="margin-bottom:22px;">Fill in what you know — it doesn't have to be complete. Submitting opens a pre-filled GitHub Issue in this project's repository so a maintainer can review it and add it to the right Excel file.</p>
+
+  <form id="pipelineForm">
+    <div class="field-row">
+      <div class="field">
+        <label for="pf-category">Category</label>
+        <select id="pf-category">
+          <option value="Adult human">Adult human</option>
+          <option value="Pediatric human">Pediatric human</option>
+          <option value="Mouse">Mouse</option>
+          <option value="Monkey">Monkey</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pf-name">Pipeline name</label>
+        <input type="text" id="pf-name" placeholder="e.g. MyPipeline" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="pf-link">Link to GitHub repository or website</label>
+      <input type="url" id="pf-link" placeholder="https://github.com/..." required>
+    </div>
+
+    <div class="field">
+      <label for="pf-desc">Short description (1-2 sentences)</label>
+      <textarea id="pf-desc" placeholder="What does this pipeline do, what makes it different?"></textarea>
+    </div>
+
+    <div class="field" id="pf-extra-wrap" style="display:none;">
+      <label id="pf-extra-label" for="pf-extra">Category-specific info</label>
+      <input type="text" id="pf-extra">
+      <div class="hint" id="pf-extra-hint"></div>
+    </div>
+
+    <details class="form-section" open>
+      <summary>Environment &amp; software</summary>
+      <div class="form-section-body">
+        <div class="field-row">
+          <div class="field">
+            <label for="pf-interface">Interface</label>
+            <select id="pf-interface">
+              <option value="terminal">terminal</option>
+              <option value="gui">gui</option>
+              <option value="web">web</option>
+              <option value="gui+terminal">gui+terminal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pf-modifiability">Modifiability</label>
+            <select id="pf-modifiability">
+              <option value="1">1 — low</option>
+              <option value="2" selected>2 — medium</option>
+              <option value="3">3 — high</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Scalability</label>
+          <div class="checkbox-grid">
+            <label class="checkbox-item"><input type="checkbox" data-field="scal-local"> Local</label>
+            <label class="checkbox-item"><input type="checkbox" data-field="scal-hpc"> HPC</label>
+            <label class="checkbox-item"><input type="checkbox" data-field="scal-cloud"> Cloud</label>
+          </div>
+        </div>
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" data-field="gpu"> GPU support</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="parallel"> Parallelization</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="polyvalent"> Versatile / multi-software</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="resume"> Resume on error</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="bids"> BIDS App</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="containerized"> Containerized</label>
+        </div>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary>Preprocessing steps</summary>
+      <div class="form-section-body">
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" data-field="gradientCheck"> Gradient direction check</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="mppca"> MP-PCA denoising</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="gibbs"> Gibbs unringing</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="b1"> B1 bias field correction</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="motion"> Head motion correction</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="fieldmapless"> Fieldmapless distortion correction</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="htmlReport"> HTML report</label>
+        </div>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary>Tractography &amp; models</summary>
+      <div class="form-section-body">
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" data-field="tractography"> Tractography step</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="dki"> DKI model</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="noddi"> NODDI model</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="freewater"> Free-water elimination</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="fodf"> fODF / CSD reconstruction</label>
+        </div>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary>QC &amp; connectomics</summary>
+      <div class="form-section-body">
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" data-field="qcBoilerplate"> QC automated boilerplate</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="qcQuant"> QC quantitative metrics</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="qcVisual"> QC interactive visualization</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="connectivity"> Structural connectivity matrix</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="biasCorrection"> Tractography bias correction</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="tractometry"> Tractometry</label>
+        </div>
+      </div>
+    </details>
+
+    <details class="form-section">
+      <summary>Data support &amp; reproducibility</summary>
+      <div class="form-section-body">
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" data-field="multiShell"> Multi shell</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="cartesian"> Cartesian acquisition</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="compressedSensing"> Compressed sensing</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="testRetest"> Test-retest reproducibility documented</label>
+          <label class="checkbox-item"><input type="checkbox" data-field="signalDrift"> Signal drift correction</label>
+        </div>
+        <div class="field-row" style="margin-top:12px;">
+          <div class="field">
+            <label for="pf-hpclevel">HPC production readiness</label>
+            <select id="pf-hpclevel">
+              <option value="1">1 — supported</option>
+              <option value="2">2 — optimized/recommended</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pf-activity">Maintenance activity</label>
+            <select id="pf-activity">
+              <option value="1">1 — nearly frozen</option>
+              <option value="2">2 — slow</option>
+              <option value="3" selected>3 — active</option>
+              <option value="4">4 — very active</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="field">
+      <label for="pf-notes">Anything else? (optional)</label>
+      <textarea id="pf-notes" placeholder="Any other criteria, caveats, or context worth mentioning."></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Open GitHub issue →</button>
+    <div class="submit-msg" id="pf-msg"></div>
+  </form>
+
+  <footer class="foot">
+    <a class="btn-ghost" href="index.html" style="padding:6px 14px;">← Back to home</a>
+  </footer>
+</div>
+
+<script>
+const GITHUB_REPO_URL = "https://github.com/DifussionCompass/DifussionCompass";
+
+const extraByCategory = {
+  "Adult human": null,
+  "Pediatric human": { label: "Supported / validated age range", hint: "e.g. \"neonates, infants\" or \"children, adolescents\" — maps to the ageRange criterion", placeholder: "children, adolescents" },
+  "Mouse": { label: "Supported reference atlas", hint: "e.g. \"Allen Mouse Brain Atlas\" or \"Waxholm Space\" — maps to the atlasSupport criterion", placeholder: "Allen Mouse Brain Atlas" },
+  "Monkey": { label: "Supported reference atlas", hint: "e.g. \"NMT\", \"D99\", \"INIA19\" — maps to the atlasSupport criterion", placeholder: "NMT" },
+};
+
+function updateExtraField(){
+  const cat = document.getElementById('pf-category').value;
+  const wrap = document.getElementById('pf-extra-wrap');
+  const info = extraByCategory[cat];
+  if(info){
+    wrap.style.display = 'block';
+    document.getElementById('pf-extra-label').textContent = info.label;
+    document.getElementById('pf-extra-hint').textContent = info.hint;
+    document.getElementById('pf-extra').placeholder = info.placeholder;
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+document.getElementById('pf-category').addEventListener('change', updateExtraField);
+updateExtraField();
+
+document.getElementById('pipelineForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const category = document.getElementById('pf-category').value;
+  const name = document.getElementById('pf-name').value.trim();
+  const link = document.getElementById('pf-link').value.trim();
+  const desc = document.getElementById('pf-desc').value.trim();
+  const notes = document.getElementById('pf-notes').value.trim();
+  const extra = document.getElementById('pf-extra').value.trim();
+
+  const scal = [];
+  if(document.querySelector('[data-field="scal-local"]').checked) scal.push('local');
+  if(document.querySelector('[data-field="scal-hpc"]').checked) scal.push('hpc');
+  if(document.querySelector('[data-field="scal-cloud"]').checked) scal.push('cloud');
+
+  const boolFields = ["gpu","parallel","polyvalent","resume","bids","containerized","gradientCheck","mppca","gibbs",
+    "b1","motion","fieldmapless","htmlReport","tractography","dki","noddi","freewater","fodf","qcBoilerplate",
+    "qcQuant","qcVisual","connectivity","biasCorrection","tractometry","multiShell","cartesian","compressedSensing",
+    "testRetest","signalDrift"];
+
+  let body = `**Category:** ${category}\n**Pipeline name:** ${name}\n**Link:** ${link}\n`;
+  if(desc) body += `**Description:** ${desc}\n`;
+  if(extra) body += `**${extraByCategory[category] ? extraByCategory[category].label : 'Category-specific info'}:** ${extra}\n`;
+  body += `\n| criterion_id | value |\n|---|---|\n`;
+  body += `| interface | ${document.getElementById('pf-interface').value} |\n`;
+  body += `| modifiability | ${document.getElementById('pf-modifiability').value} |\n`;
+  body += `| hpcLevel | ${document.getElementById('pf-hpclevel').value} |\n`;
+  body += `| activity | ${document.getElementById('pf-activity').value} |\n`;
+  body += `| scalability | ${scal.join(',') || '(none selected)'} |\n`;
+  boolFields.forEach(f=>{
+    const checked = document.querySelector(`[data-field="${f}"]`).checked;
+    body += `| ${f} | ${checked ? 'yes' : 'no'} |\n`;
+  });
+  if(notes) body += `\n**Additional notes:**\n${notes}\n`;
+  body += `\n---\n*Submitted via the "Suggest a pipeline" form.*`;
+
+  const title = `[Pipeline suggestion] ${name} (${category})`;
+  const url = `${GITHUB_REPO_URL}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  window.open(url, '_blank', 'noopener');
+  document.getElementById('pf-msg').textContent = 'Opening a pre-filled GitHub issue in a new tab — review it and click "Submit new issue" there to finish.';
+});
+</script>
+</body>
+</html>

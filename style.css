@@ -61,6 +61,10 @@ body::before{
   display:flex; flex-direction: column;
 }
 
+body.home .app {
+  max-width: 1100px;
+}
+
 header.top{
   display:flex; align-items:center; justify-content:space-between;
   padding: 4px 0 28px;
@@ -116,7 +120,7 @@ header.top{
   font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 6px 0 18px;
 }
 .intro h1 .accent{ color: var(--z-axis); }
-.intro p.lede{ color: var(--muted); font-size: 16px; max-width: 56ch; margin-bottom: 28px; }
+.intro p.lede{ color: var(--muted); font-size: 16px; max-width: none; margin-bottom: 28px; }
 .intro .facts{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 34px; }
 .fact{ background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
 .fact b{ display:block; font-family:'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 2px; }

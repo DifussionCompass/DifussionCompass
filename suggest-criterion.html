@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamline — Suggest a criterion / question</title>
+<link rel="stylesheet" href="style.css">
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+<div class="app">
+<script src="theme.js"></script>
+
+  <header class="top">
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Streamline logo"> Diffusion Compass</a>
+    <div class="top-right">
+
+      <div class="theme-tag mono">dMRI pipeline finder</div>
+
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <a class="tab-btn" href="index.html">Home</a>
+    <a class="tab-btn" href="suggest-pipeline.html">Suggest a pipeline</a>
+    <a class="tab-btn active" href="suggest-criterion.html">Suggest a criterion / question</a>
+  </div>
+
+  <div class="q-eyebrow">Contribute</div>
+  <h2 class="q-title" style="margin-bottom:6px;">Suggest a criterion or question</h2>
+  <p class="lede" style="margin-bottom:22px;">Think a comparison table (or a category's questionnaire) is missing something important? Propose it here. This also opens a pre-filled GitHub Issue.</p>
+
+  <form id="criterionForm">
+    <div class="field">
+      <label for="cf-category">Which category does this apply to?</label>
+      <select id="cf-category">
+        <option value="Adult human">Adult human</option>
+        <option value="Pediatric human">Pediatric human</option>
+        <option value="Mouse">Mouse</option>
+        <option value="Monkey">Monkey</option>
+        <option value="All categories">All categories</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cf-type">What are you suggesting?</label>
+      <select id="cf-type">
+        <option value="A new comparison criterion (Excel row)">A new comparison criterion (Excel row)</option>
+        <option value="A new quiz question">A new quiz question</option>
+        <option value="A change to an existing criterion/question">A change to an existing criterion/question</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cf-title">Criterion / question — short title</label>
+      <input type="text" id="cf-title" placeholder="e.g. &quot;Support for reversed phase-encoding acquisitions&quot;" required>
+    </div>
+
+    <div class="field">
+      <label for="cf-desc">Description — what does it mean, what are the possible values or answer options?</label>
+      <textarea id="cf-desc" placeholder="e.g. Whether the pipeline can use a pair of reversed phase-encoding (blip-up/blip-down) images for distortion correction. Values: yes / no." required></textarea>
+    </div>
+
+    <div class="field">
+      <label for="cf-why">Why does it matter? (optional)</label>
+      <textarea id="cf-why" placeholder="Why should this influence the pipeline recommendation?"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="cf-contact">Your name / contact (optional)</label>
+      <input type="text" id="cf-contact" placeholder="So a maintainer can follow up if needed">
+    </div>
+
+    <button type="submit" class="btn-primary">Open GitHub issue →</button>
+    <div class="submit-msg" id="cf-msg"></div>
+  </form>
+
+  <footer class="foot">
+    <a class="btn-ghost" href="index.html" style="padding:6px 14px;">← Back to home</a>
+  </footer>
+</div>
+
+<script>
+const GITHUB_REPO_URL = "https://github.com/DifussionCompass/DifussionCompass";
+
+document.getElementById('criterionForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const category = document.getElementById('cf-category').value;
+  const type = document.getElementById('cf-type').value;
+  const title = document.getElementById('cf-title').value.trim();
+  const desc = document.getElementById('cf-desc').value.trim();
+  const why = document.getElementById('cf-why').value.trim();
+  const contact = document.getElementById('cf-contact').value.trim();
+
+  let body = `**Category:** ${category}\n**Type:** ${type}\n**Title:** ${title}\n\n**Description:**\n${desc}\n`;
+  if(why) body += `\n**Why it matters:**\n${why}\n`;
+  if(contact) body += `\n**Submitted by:** ${contact}\n`;
+  body += `\n---\n*Submitted via the "Suggest a criterion / question" form.*`;
+
+  const issueTitle = `[Criterion suggestion] ${title} (${category})`;
+  const url = `${GITHUB_REPO_URL}/issues/new?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(body)}`;
+  window.open(url, '_blank', 'noopener');
+  document.getElementById('cf-msg').textContent = 'Opening a pre-filled GitHub issue in a new tab — review it and click "Submit new issue" there to finish.';
+});
+</script>
+</body>
+</html>

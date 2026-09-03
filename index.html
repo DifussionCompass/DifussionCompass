@@ -3,16 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diffusion Compass — dMRI preprocessing pipeline finder</title>
+<title>Streamline — dMRI preprocessing pipeline finder</title>
 <link rel="stylesheet" href="style.css">
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <div class="app">
+<script src="theme.js"></script>
 
   <header class="top">
-    <div class="brand"><img src="logo.png" class="logo-img" alt="Streamline logo"> Diffusion Compass</div>
-    <div class="theme-tag mono">dMRI pipeline finder</div>
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Streamline logo"> Diffusion Compass</a>
+    <div class="top-right">
+
+      <div class="theme-tag mono">dMRI pipeline finder</div>
+
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+
+    </div>
   </header>
+
+  <div class="tabs" role="tablist">
+    <a class="tab-btn active" href="index.html">Home</a>
+    <a class="tab-btn" href="suggest-pipeline.html">Suggest a pipeline</a>
+    <a class="tab-btn" href="suggest-criterion.html">Suggest a criterion / question</a>
+  </div>
 
   <section class="intro">
     <h1>Which pipeline fits <span class="accent">your</span> diffusion data?</h1>
@@ -20,31 +45,50 @@
 
     <div class="hub-grid">
       <a class="hub-card" href="adult.html">
-        <strong>Adult human</strong>
-        <span>15 pipelines compared · full dataset</span>
-        <span class="file mono">data/adult.xlsx</span>
+        <div class="hub-card-body">
+          <strong>Adult human</strong>
+          <span>15 pipelines compared · full dataset</span>
+          <span class="file mono">data/adult.xlsx</span>
+        </div>
+        <img class="card-logo" data-dark="image/adult-logo-dark.png" data-light="image/adult-logo-light.png" alt="Adult human logo">
       </a>
       <a class="hub-card" href="pediatric.html">
-        <strong>Pediatric human</strong>
-        <span>Placeholder dataset · age-range aware questionnaire</span>
-        <span class="file mono">data/pediatric.xlsx</span>
+        <div class="hub-card-body">
+          <strong>Pediatric human</strong>
+          <span>Placeholder dataset · age-range aware questionnaire</span>
+          <span class="file mono">data/pediatric.xlsx</span>
+        </div>
+        <img class="card-logo" data-dark="image/pediatric-logo-dark.png" data-light="image/pediatric-logo-light.png" alt="Pediatric human logo">
       </a>
       <a class="hub-card" href="mouse.html">
-        <strong>Mouse</strong>
-        <span>Placeholder dataset · atlas-aware questionnaire</span>
-        <span class="file mono">data/mouse.xlsx</span>
+        <div class="hub-card-body">
+          <strong>Mouse</strong>
+          <span>Placeholder dataset · atlas-aware questionnaire</span>
+          <span class="file mono">data/mouse.xlsx</span>
+        </div>
+        <img class="card-logo" data-dark="image/mouse-logo-dark.png" data-light="image/mouse-logo-light.png" alt="Mouse logo">
       </a>
       <a class="hub-card" href="monkey.html">
-        <strong>Monkey</strong>
-        <span>Placeholder dataset · atlas-aware questionnaire</span>
-        <span class="file mono">data/monkey.xlsx</span>
+        <div class="hub-card-body">
+          <strong>Monkey</strong>
+          <span>Placeholder dataset · atlas-aware questionnaire</span>
+          <span class="file mono">data/monkey.xlsx</span>
+        </div>
+        <img class="card-logo" data-dark="image/monkey-logo-dark.png" data-light="image/monkey-logo-light.png" alt="Monkey logo">
       </a>
     </div>
   </section>
 
   <footer class="foot">
     Each category is a fully independent page (its own questions + its own Excel file) — updating one never affects the others.
+    <br><br>
+    <a class="btn-ghost" id="githubLink" href="#" target="_blank" rel="noopener" style="padding:6px 14px;">↗ View this project on GitHub</a>
   </footer>
 </div>
+
+<script>
+const GITHUB_REPO_URL = "https://github.com/DifussionCompass/DifussionCompass";
+document.getElementById('githubLink').href = GITHUB_REPO_URL;
+</script>
 </body>
 </html>

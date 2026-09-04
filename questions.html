@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diffusion Compass — Questions</title>
+<link rel="stylesheet" href="style.css">
+<script src="categories.js"></script>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+<div class="app">
+<script src="theme.js"></script>
+
+  <header class="top">
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Diffusion Compass logo"> Diffusion Compass</a>
+    <div class="top-right">
+      <div class="theme-tag mono" id="themeTag">Questions</div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" id="subNav"></div>
+
+  <div class="q-eyebrow">Reference</div>
+  <h2 class="q-title" style="margin-bottom:6px;" id="pageTitle">Questions</h2>
+  <p class="lede" style="margin-bottom:22px;" id="pageLede">Every question asked in this category's quiz, and exactly how each answer affects the ranking.</p>
+
+  <div class="load-msg" id="loadMsg"></div>
+  <div id="questionList"></div>
+
+  <footer class="foot">
+    <a class="btn-ghost" href="index.html" style="padding:6px 14px;">← Back to home</a>
+  </footer>
+</div>
+
+<style>
+  .qs-block{
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 14px;
+  }
+  .qs-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom: 14px; }
+  .qs-eyebrow{ font-family:'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; }
+  .qs-title{ font-size: 16px; font-weight:600; }
+  .qs-type{
+    font-family:'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space:nowrap; flex:none;
+  }
+  .qs-option{ border-top: 1px solid var(--line); padding: 12px 0; }
+  .qs-option:first-of-type{ border-top:none; }
+  .qs-option-label{ font-size: 14px; font-weight:500; margin-bottom: 4px; }
+  .qs-option-note{ color: var(--muted); font-size: 12.5px; }
+  .qs-badge{
+    display:inline-block; font-family:'IBM Plex Mono', monospace; font-size: 10.5px;
+    padding: 2px 8px; border-radius: 999px; margin-right:8px; vertical-align:1px;
+  }
+  .qs-badge.filter{ background: rgba(232,86,74,0.14); color: var(--x-axis); }
+  .qs-badge.score{ background: rgba(76,140,224,0.14); color: var(--z-axis); }
+  .qs-badge.none{ background: var(--surface-alt); color: var(--muted); }
+</style>
+
+<script>
+const cat = getCategoryFromUrl();
+const subNav = document.getElementById('subNav');
+const loadMsg = document.getElementById('loadMsg');
+const listEl = document.getElementById('questionList');
+
+if(!cat){
+  document.getElementById('pageLede').textContent = 'No valid category was specified in the URL (expected e.g. questions.html?cat=adult).';
+} else {
+  const meta = CATEGORIES[cat];
+  document.getElementById('themeTag').textContent = meta.label;
+  document.getElementById('pageTitle').textContent = `${meta.label} — Questions`;
+  subNav.innerHTML = `
+    <a class="tab-btn" href="${meta.quizPage}">Quiz</a>
+    <a class="tab-btn" href="pipelines.html?cat=${cat}">Pipelines</a>
+    <a class="tab-btn" href="criteria.html?cat=${cat}">Criteria</a>
+    <a class="tab-btn active" href="questions.html?cat=${cat}">Questions</a>
+  `;
+
+  loadMsg.innerHTML = '<span class="spinner"></span>Loading ' + meta.questionsFile + '…';
+
+  const script = document.createElement('script');
+  script.src = meta.questionsFile;
+  script.onload = () => {
+    const QUESTIONS = window.QUESTIONS || [];
+    loadMsg.textContent = `✓ ${QUESTIONS.length} questions loaded from ${meta.questionsFile}`;
+    QUESTIONS.forEach(q=>{
+      const block = document.createElement('div');
+      block.className = 'qs-block';
+      const typeLabel = q.type === 'multi' ? 'Select all that apply' : 'Single choice';
+      let optionsHtml = '';
+      q.options.forEach(opt=>{
+        let badge = '<span class="qs-badge none">No effect</span>';
+        if(opt.filter) badge = '<span class="qs-badge filter">Blocking filter</span>';
+        else if(opt.score) badge = '<span class="qs-badge score">Preference score</span>';
+        optionsHtml += `
+          <div class="qs-option">
+            <div class="qs-option-label">${badge}${opt.label}</div>
+            <div class="qs-option-note">${opt.note || ''}</div>
+          </div>`;
+      });
+      block.innerHTML = `
+        <div class="qs-head">
+          <div>
+            <div class="qs-eyebrow">${q.eyebrow || ''}</div>
+            <div class="qs-title">${q.title}</div>
+          </div>
+          <div class="qs-type">${typeLabel}</div>
+        </div>
+        ${optionsHtml}
+      `;
+      listEl.appendChild(block);
+    });
+  };
+  script.onerror = () => {
+    loadMsg.className = 'load-msg err';
+    loadMsg.textContent = `Error: could not load ${meta.questionsFile}`;
+  };
+  document.head.appendChild(script);
+}
+</script>
+</body>
+</html>

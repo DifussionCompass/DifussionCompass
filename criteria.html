@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diffusion Compass — Criteria</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="xlsx-loader.js"></script>
+<script src="categories.js"></script>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+<div class="app app-wide">
+<script src="theme.js"></script>
+
+  <header class="top">
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Diffusion Compass logo"> Diffusion Compass</a>
+    <div class="top-right">
+      <div class="theme-tag mono" id="themeTag">Criteria</div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" id="subNav"></div>
+
+  <div class="q-eyebrow">Reference</div>
+  <h2 class="q-title" style="margin-bottom:6px;" id="pageTitle">Criteria</h2>
+  <p class="lede" style="margin-bottom:22px;" id="pageLede">The full comparison table for this category, read directly from its Excel file.</p>
+
+  <div class="load-msg" id="loadMsg"></div>
+  <div class="table-scroll-top" id="scrollTop"><div id="scrollTopInner"></div></div>
+  <div class="table-scroll" id="tableWrap"></div>
+
+  <footer class="foot">
+    <a class="btn-ghost" href="index.html" style="padding:6px 14px;">← Back to home</a>
+  </footer>
+</div>
+
+<style>
+  .app-wide{ max-width: min(96vw, 1800px); }
+  .table-scroll-top{ overflow-x:auto; overflow-y:hidden; height:16px; margin-bottom:4px; }
+  .table-scroll-top > div{ height:1px; }
+  .table-scroll{ overflow-x:auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  table.criteria-table{ border-collapse: collapse; width:100%; font-size: 13px; }
+  table.criteria-table th, table.criteria-table td{
+    padding: 8px 12px; border-bottom: 1px solid var(--line); text-align:left; white-space: nowrap;
+  }
+  table.criteria-table thead th{
+    background: var(--surface-alt); font-family:'IBM Plex Mono', monospace; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+    position: sticky; top:0; z-index: 2;
+  }
+  table.criteria-table thead th:first-child{ left:0; z-index:3; }
+  table.criteria-table td:first-child, table.criteria-table th:first-child{
+    position: sticky; left:0; background: var(--surface); font-weight:600; z-index:1;
+    box-shadow: 2px 0 0 var(--line);
+  }
+  table.criteria-table tbody tr:nth-child(odd) td{ background: var(--surface); }
+  table.criteria-table tbody tr:nth-child(odd) td:first-child{ background: var(--surface); }
+  table.criteria-table tbody tr:nth-child(even) td{ background: var(--surface-alt); }
+  table.criteria-table tbody tr:nth-child(even) td:first-child{ background: var(--surface-alt); }
+  .val-yes{ color: var(--y-axis); font-weight:600; }
+  .val-no{ color: var(--muted); }
+  .val-text{ font-family:'IBM Plex Mono', monospace; font-size: 12px; white-space: normal; max-width: 34ch; }
+</style>
+
+<script>
+const cat = getCategoryFromUrl();
+const subNav = document.getElementById('subNav');
+
+const BOOL_TRUE_DISPLAY = new Set(["yes","true","1","✔","x","oui","vrai"]);
+const BOOL_FALSE_DISPLAY = new Set(["no","false","0","✘","non","faux",""]);
+
+function renderCell(raw){
+  const v = String(raw || "").trim();
+  const low = v.toLowerCase();
+  if(BOOL_TRUE_DISPLAY.has(low)) return '<span class="val-yes">✔</span>';
+  if(BOOL_FALSE_DISPLAY.has(low)) return '<span class="val-no">✘</span>';
+  return `<span class="val-text">${v}</span>`;
+}
+
+if(!cat){
+  document.getElementById('pageLede').textContent = 'No valid category was specified in the URL (expected e.g. criteria.html?cat=adult).';
+  document.getElementById('loadMsg').textContent = '';
+} else {
+  const meta = CATEGORIES[cat];
+  document.getElementById('themeTag').textContent = meta.label;
+  document.getElementById('pageTitle').textContent = `${meta.label} — Criteria`;
+  subNav.innerHTML = `
+    <a class="tab-btn" href="${meta.quizPage}">Quiz</a>
+    <a class="tab-btn" href="pipelines.html?cat=${cat}">Pipelines</a>
+    <a class="tab-btn active" href="criteria.html?cat=${cat}">Criteria</a>
+    <a class="tab-btn" href="questions.html?cat=${cat}">Questions</a>
+  `;
+
+  const loadMsg = document.getElementById('loadMsg');
+  const wrap = document.getElementById('tableWrap');
+  const scrollTop = document.getElementById('scrollTop');
+  const scrollTopInner = document.getElementById('scrollTopInner');
+  loadMsg.innerHTML = '<span class="spinner"></span>Loading ' + meta.xlsx + '…';
+
+  loadCriteriaGrid(meta.xlsx).then(({ pipelineNames, rows })=>{
+    rows = rows.filter(r => r.id !== 'desc');
+    loadMsg.textContent = `✓ ${rows.length} criteria × ${pipelineNames.length} pipelines, from ${meta.xlsx}`;
+    let html = '<table class="criteria-table"><thead><tr><th>Criterion</th>';
+    pipelineNames.forEach(n => html += `<th>${n}</th>`);
+    html += '</tr></thead><tbody>';
+    rows.forEach(r=>{
+      html += `<tr><td>${r.label}</td>`;
+      r.values.forEach(v => html += `<td>${renderCell(v)}</td>`);
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    // top scrollbar mirrors the table's own horizontal scroll
+    const table = wrap.querySelector('table');
+    scrollTopInner.style.width = table.scrollWidth + 'px';
+    let syncing = false;
+    scrollTop.addEventListener('scroll', ()=>{
+      if(syncing) return; syncing = true;
+      wrap.scrollLeft = scrollTop.scrollLeft;
+      syncing = false;
+    });
+    wrap.addEventListener('scroll', ()=>{
+      if(syncing) return; syncing = true;
+      scrollTop.scrollLeft = wrap.scrollLeft;
+      syncing = false;
+    });
+  }).catch(err=>{
+    loadMsg.className = 'load-msg err';
+    loadMsg.textContent = `Error: ${err.message}`;
+  });
+}
+</script>
+</body>
+</html>

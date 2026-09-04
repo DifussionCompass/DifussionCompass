@@ -2,92 +2,11 @@
    SHARED ENGINE — used by adult.html, pediatric.html, mouse.html, monkey.html
    Each page must define, BEFORE loading this script:
      - window.DATA_FILE   (string, e.g. "data/adult.xlsx")
-     - window.QUESTIONS   (array, category-specific — see bottom of this file
-                            for the schema / an annotated example)
+     - window.QUESTIONS   (array, category-specific — loaded from its own
+                            {category}-questions.js file)
    The HTML markup (element ids) must be identical across all category pages.
-   =========================================================================
-
-   EXCEL FILE FORMAT expected in the "Pipelines" sheet:
-   - Col A: criterion_id   (technical key, e.g. multiShell, interface, activity...)
-   - Col B: criterion_label (human-readable label, ignored by the code)
-   - Col C, D, E...: one column per pipeline, header = pipeline name
-   Accepted boolean values: yes/no, true/false, 1/0, ✔/✘, x
+   Requires xlsx-loader.js to be loaded first (provides loadPipelinesFromXlsx).
    ========================================================================= */
-
-const BOOL_TRUE = new Set(["yes","true","1","✔","x","oui","vrai"]);
-
-function parseBool(v){
-  if(v === null || v === undefined) return false;
-  return BOOL_TRUE.has(String(v).trim().toLowerCase());
-}
-function parseList(v){
-  if(!v) return [];
-  return String(v).split(/[,;]/).map(s=>s.trim().toLowerCase()).filter(Boolean);
-}
-function parseNum(v, fallback){
-  const n = parseFloat(v);
-  return isNaN(n) ? fallback : n;
-}
-
-// Any criterion NOT listed here and not "desc"/"interface"/"scalability" is
-// still read but left as a raw string on the pipeline object — so a category
-// can introduce extra criteria in its Excel file without touching this file,
-// as long as its own QUESTIONS reference them as plain values.
-const BOOL_FIELDS = ["gpu","parallel","polyvalent","resume","bids","gradientCheck","mppca","gibbs","b1","motion",
-  "fieldmapless","htmlReport","containerized","tractography","dki","noddi","freewater","fodf","qcBoilerplate",
-  "qcQuant","qcVisual","connectivity","biasCorrection","tractometry","multiShell","cartesian","compressedSensing",
-  "testRetest","signalDrift"];
-const NUM_FIELDS = { modifiability:1, hpcLevel:1, activity:1 };
-
-async function loadPipelinesFromXlsx(url){
-  const res = await fetch(url, { cache: "no-store" });
-  if(!res.ok) throw new Error(`File not found (${res.status}): ${url}`);
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-  const sheetName = wb.SheetNames.includes("Pipelines") ? "Pipelines" : wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-  if(!rows.length) throw new Error("'Pipelines' sheet is empty.");
-
-  const header = rows[0];
-  const pipelineCols = [];
-  for(let c = 2; c < header.length; c++){
-    const name = String(header[c] || "").trim();
-    if(name) pipelineCols.push({ name, col: c });
-  }
-  if(!pipelineCols.length) throw new Error("No pipeline column detected on row 1 (starting from column C).");
-
-  const byId = {};
-  const rawIds = [];
-  for(let r = 1; r < rows.length; r++){
-    const id = String(rows[r][0] || "").trim();
-    if(id){ byId[id] = rows[r]; rawIds.push(id); }
-  }
-
-  const knownIds = new Set(["desc","interface","scalability", ...BOOL_FIELDS, ...Object.keys(NUM_FIELDS)]);
-
-  const pipelines = pipelineCols.map(({name, col})=>{
-    const get = (id)=> (byId[id] ? byId[id][col] : "");
-    const p = { id: name.toLowerCase().replace(/[^a-z0-9]+/g,"-"), name };
-    p.desc = String(get("desc") || "").trim();
-    p.interface = String(get("interface") || "").trim().toLowerCase();
-    p.scalability = parseList(get("scalability"));
-    for(const [field, fallback] of Object.entries(NUM_FIELDS)){
-      p[field] = parseNum(get(field), fallback);
-    }
-    for(const field of BOOL_FIELDS){
-      p[field] = parseBool(get(field));
-    }
-    // Pass through any extra/custom criteria rows as raw string values,
-    // so a category-specific Excel file can add its own rows freely.
-    rawIds.forEach(id=>{
-      if(!knownIds.has(id)) p[id] = String(get(id) || "").trim();
-    });
-    return p;
-  });
-
-  return pipelines;
-}
 
 /* ======================= ENGINE STATE / DOM WIRING ======================= */
 let PIPELINES = [];

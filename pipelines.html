@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diffusion Compass — Pipelines</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="xlsx-loader.js"></script>
+<script src="categories.js"></script>
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('streamline-theme');
+    if(!t){ t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+    if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+<div class="app">
+<script src="theme.js"></script>
+
+  <header class="top">
+    <a class="brand" href="index.html"><img src="image/logo.png" class="logo-img" alt="Diffusion Compass logo"> Diffusion Compass</a>
+    <div class="top-right">
+      <div class="theme-tag mono" id="themeTag">Pipelines</div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light / dark theme" title="Toggle light / dark theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" id="subNav"></div>
+
+  <div class="q-eyebrow">Reference</div>
+  <h2 class="q-title" style="margin-bottom:6px;" id="pageTitle">Pipelines</h2>
+  <p class="lede" style="margin-bottom:22px;" id="pageLede">Every pipeline included in this category's comparison, with a short description and a link to its GitHub repository or website.</p>
+
+  <div class="load-msg" id="loadMsg"></div>
+  <div id="pipelineList"></div>
+
+  <footer class="foot">
+    <a class="btn-ghost" href="index.html" style="padding:6px 14px;">← Back to home</a>
+  </footer>
+</div>
+
+<style>
+  .pipeline-card{
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 12px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+  }
+  .pipeline-card .info{ flex:1; min-width:0; }
+  .pipeline-card .name{ font-size: 16px; font-weight:600; margin-bottom: 4px; }
+  .pipeline-card .desc{ color: var(--muted); font-size: 13.5px; max-width: none; }
+  .pipeline-card .visit{
+    flex: none; font-family:'IBM Plex Mono', monospace; font-size: 12.5px;
+    color: var(--z-axis); text-decoration:none; border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 14px; white-space:nowrap;
+  }
+  .pipeline-card .visit:hover{ border-color: var(--z-axis); }
+  .pipeline-card .no-link{ color: var(--muted); font-size: 12px; font-family:'IBM Plex Mono', monospace; }
+</style>
+
+<script>
+const cat = getCategoryFromUrl();
+const subNav = document.getElementById('subNav');
+
+if(!cat){
+  document.getElementById('pageLede').textContent = 'No valid category was specified in the URL (expected e.g. pipelines.html?cat=adult).';
+  document.getElementById('loadMsg').textContent = '';
+} else {
+  const meta = CATEGORIES[cat];
+  document.getElementById('themeTag').textContent = meta.label;
+  document.getElementById('pageTitle').textContent = `${meta.label} — Pipelines`;
+  subNav.innerHTML = `
+    <a class="tab-btn" href="${meta.quizPage}">Quiz</a>
+    <a class="tab-btn active" href="pipelines.html?cat=${cat}">Pipelines</a>
+    <a class="tab-btn" href="criteria.html?cat=${cat}">Criteria</a>
+    <a class="tab-btn" href="questions.html?cat=${cat}">Questions</a>
+  `;
+
+  const loadMsg = document.getElementById('loadMsg');
+  const listEl = document.getElementById('pipelineList');
+  loadMsg.innerHTML = '<span class="spinner"></span>Loading ' + meta.xlsx + '…';
+
+  loadPipelinesFromXlsx(meta.xlsx).then(pipelines=>{
+    loadMsg.textContent = `✓ ${pipelines.length} pipelines loaded from ${meta.xlsx}`;
+    pipelines.forEach(p=>{
+      const card = document.createElement('div');
+      card.className = 'pipeline-card';
+      const link = p.website
+        ? `<a class="visit" href="${p.website}" target="_blank" rel="noopener">View pipeline ↗</a>`
+        : `<span class="no-link">No link on file</span>`;
+      card.innerHTML = `
+        <div class="info">
+          <div class="name">${p.name}</div>
+          <div class="desc">${p.desc || ''}</div>
+        </div>
+        ${link}
+      `;
+      listEl.appendChild(card);
+    });
+  }).catch(err=>{
+    loadMsg.className = 'load-msg err';
+    loadMsg.textContent = `Error: ${err.message}`;
+  });
+}
+</script>
+</body>
+</html>

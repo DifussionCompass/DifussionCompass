@@ -1,0 +1,79 @@
+/* Adult human — quiz questions. Loaded by adult.html (the quiz) and by
+   questions.html?cat=adult (the read-only summary page).
+   Each option may have:
+   - filter: a hard, blocking constraint (pipelines that don't match are excluded)
+   - score:  a soft preference (adds points to matching pipelines)
+   - note:   a short plain-language explanation of what the option rewards,
+             shown on the "Questions" summary page. */
+window.QUESTIONS = [
+  { id:"acq", eyebrow:"Raw data", type:"single",
+    title:"What type of acquisition are your data?",
+    options:[
+      { label:"Single shell only", filter:null,
+        note:"No constraint — all compared pipelines support single-shell data." },
+      { label:"Multi-shell (multiple b-values)", filter:p=>p.multiShell===true,
+        note:"Blocking filter: keeps only pipelines that explicitly support multi-shell acquisitions." },
+      { label:"Compressed sensing / non-Cartesian acquisition", filter:p=>p.compressedSensing===true,
+        note:"Blocking filter: keeps only pipelines that support compressed-sensing / non-Cartesian sampling." },
+      { label:"Not sure", filter:null, note:"No constraint applied." },
+    ]},
+  { id:"tracto", eyebrow:"Analysis goal", type:"single",
+    title:"Do you need to run tractography?",
+    options:[
+      { label:"Yes, tractography is part of the analysis", filter:p=>p.tractography===true,
+        note:"Blocking filter: keeps only pipelines that include a tractography step." },
+      { label:"No, preprocessing only", filter:null, note:"No constraint applied." },
+      { label:"Not sure yet", filter:null, note:"No constraint applied." },
+    ]},
+  { id:"compute", eyebrow:"Environment", type:"single",
+    title:"What compute environment do you have access to?",
+    options:[
+      { label:"My own computer only (local)", score:p=>p.scalability.includes("local") ? 3 : 0,
+        note:"+3 pts if the pipeline's scalability options include local execution." },
+      { label:"HPC cluster (Slurm / SGE / PBS)", score:p=>(p.scalability.includes("hpc")?2:0) + (p.hpcLevel===2?2:0),
+        note:"+2 pts if HPC is supported, +2 more if HPC readiness is rated 'optimized/recommended'." },
+      { label:"Cloud (AWS/GCP/Azure) or a web platform", score:p=>p.scalability.includes("cloud") ? 4 : 0,
+        note:"+4 pts if the pipeline's scalability options include cloud execution." },
+      { label:"Doesn't matter", score:null, note:"No points awarded — this question is skipped in scoring." },
+    ]},
+  { id:"interface", eyebrow:"Day-to-day use", type:"single",
+    title:"What kind of interface do you prefer to work with?",
+    options:[
+      { label:"Terminal / command line, no problem", score:p=>p.interface==="terminal" ? 3 : 0,
+        note:"+3 pts if the pipeline's interface is 'terminal'." },
+      { label:"A graphical interface or a web platform", score:p=>(p.interface==="gui"||p.interface==="gui+terminal"||p.interface==="web") ? 3 : 0,
+        note:"+3 pts if the interface is 'gui', 'gui+terminal', or 'web'." },
+      { label:"Doesn't matter, I just want it to work", score:null, note:"No points awarded — this question is skipped in scoring." },
+    ]},
+  { id:"custom", eyebrow:"Customization", type:"single",
+    title:"How important is it to be able to modify the pipeline (code, parameters)?",
+    options:[
+      { label:"Very important, I want full control", score:p=>p.modifiability * 2 + (p.polyvalent?2:0),
+        note:"+2 pts per modifiability level (1-3), +2 more if the pipeline is versatile/multi-software." },
+      { label:"Somewhat, a few parameters are enough", score:p=>p.modifiability,
+        note:"+1 pt per modifiability level (1-3)." },
+      { label:"Not important, I want a reliable out-of-the-box tool", score:p=>(3-p.modifiability) + (p.containerized?2:0) + (p.htmlReport?1:0),
+        note:"Rewards low modifiability (inverse score), +2 pts if containerized, +1 pt if it produces an HTML report." },
+    ]},
+  { id:"advanced", eyebrow:"Advanced needs", type:"multi",
+    title:"Do you need any specific advanced methods or analyses?",
+    options:[
+      { label:"Advanced models (NODDI, DKI, free-water)", score:p=>(p.noddi?3:0)+(p.dki?3:0)+(p.freewater?3:0),
+        note:"+3 pts each for NODDI, DKI, and free-water elimination support." },
+      { label:"fODF reconstruction / advanced tractography (CSD)", score:p=>p.fodf ? 4 : 0,
+        note:"+4 pts if the pipeline supports fODF / CSD reconstruction." },
+      { label:"Connectomics (connectivity matrices, tractometry)", score:p=>(p.connectivity?3:0)+(p.tractometry?3:0)+(p.biasCorrection?2:0),
+        note:"+3 pts for connectivity matrices, +3 for tractometry, +2 for tractography bias correction." },
+      { label:"Advanced quantitative QC (reports, outlier detection)", score:p=>(p.qcQuant?2:0)+(p.qcBoilerplate?2:0)+(p.qcVisual?2:0)+(p.htmlReport?1:0),
+        note:"+2 pts each for quantitative QC metrics, automated QC boilerplate, and visual QC, +1 for an HTML report." },
+      { label:"Nothing specific", score:null, note:"No points awarded — this option is skipped in scoring." },
+    ]},
+  { id:"maintenance", eyebrow:"Longevity", type:"single",
+    title:"Does the pipeline need to be actively maintained long-term?",
+    options:[
+      { label:"Yes, that's important to me", score:p=>p.activity * 2 + (p.resume?1:0),
+        note:"+2 pts per activity level (1-4), +1 more if it supports resume-on-error." },
+      { label:"Doesn't matter, I mostly care about features", score:null,
+        note:"No points awarded — this question is skipped in scoring." },
+    ]},
+];

@@ -92,14 +92,21 @@ function updateProgress(){
   const len = fillPath.getTotalLength ? fillPath.getTotalLength() : 1000;
   fillPath.style.strokeDasharray = len;
   fillPath.style.strokeDashoffset = len - (len * (current/total));
-  stepLabel.textContent = `Question ${current+1} / ${total}`;
-  stepPct.textContent = pct + '%';
+  if(current >= total){
+    stepLabel.textContent = 'Results';
+    stepPct.textContent = '100%';
+  } else {
+    stepLabel.textContent = `Question ${current+1} / ${total}`;
+    stepPct.textContent = pct + '%';
+  }
 }
 
 function renderQuestion(){
   const q = QUESTIONS[current];
   document.getElementById('qEyebrow').textContent = q.eyebrow;
   document.getElementById('qTitle').textContent = q.title;
+  const hintEl = document.getElementById('qHint');
+  if(hintEl) hintEl.textContent = q.type === 'multi' ? '☑ Multiple choice — select all that apply' : '';
   const wrap = document.getElementById('qOptions');
   wrap.innerHTML = '';
   q.options.forEach((opt, idx)=>{
@@ -164,7 +171,7 @@ function computeResults(){
   scored.sort((a,b)=> b.total - a.total || (b.p.activity||0) - (a.p.activity||0));
 
   const maxScore = scored.length ? scored[0].total : 1;
-  const top = scored.slice(0, 3);
+  const top = scored.slice(0, 5);
 
   const noteEl = document.getElementById('filtersNote');
   if(fallback){
@@ -198,6 +205,7 @@ function computeResults(){
         </div>
       </div>
       <div class="score-bar"><i style="width:${pct}%"></i></div>
+      ${p.website ? `<a class="visit-link" href="${p.website}" target="_blank" rel="noopener">↗ Visit ${p.name} website / GitHub</a>` : ''}
       <div class="chips">
         ${p.interface ? `<span class="chip">${p.interface}</span>` : ''}
         ${p.containerized ? `<span class="chip">containerized</span>` : ''}
